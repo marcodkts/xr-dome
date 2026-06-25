@@ -10,7 +10,7 @@ use orientation::{
 };
 use renderer::Renderer;
 use winit::{
-    event::{ElementState, Event, WindowEvent},
+    event::{DeviceEvent, ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
     window::WindowBuilder,
@@ -31,10 +31,10 @@ fn main() {
     );
 
     let (vertices, indices) = dome::generate_dome(
-        128,   // quantidade de segmentos
+        256,   // quantidade de segmentos
         3.0,   // raio
-        2.2,   // altura
-        180.0, // arco horizontal
+        3.0,   // altura
+        360.0, // arco horizontal
     );
 
     let mut renderer = pollster::block_on(Renderer::new(
@@ -50,11 +50,15 @@ fn main() {
             event_loop.set_control_flow(ControlFlow::Poll);
 
             match event {
+                Event::DeviceEvent { event, .. } => {
+                    mouse.handle_device_event(&event);
+                }
+
                 Event::WindowEvent {
                     window_id,
                     event,
                 } if window_id == window.id() => {
-                    mouse.handle_event(&event);
+                    mouse.handle_window_event(&event);
 
                     match event {
                         WindowEvent::CloseRequested => {
@@ -65,11 +69,34 @@ fn main() {
                             event: key_event,
                             ..
                         } => {
-                            if key_event.state == ElementState::Pressed
-                                && key_event.logical_key
-                                    == Key::Named(NamedKey::Escape)
-                            {
-                                event_loop.exit();
+                            if key_event.state == ElementState::Pressed {
+                                match key_event.logical_key {
+                                    Key::Named(NamedKey::Escape) => {
+                                        event_loop.exit();
+                                    }
+
+                                    Key::Named(NamedKey::ArrowLeft) => {
+                                        mouse.rotate_by_keyboard(5.0_f32.to_radians(), 0.0);
+                                    }
+
+                                    Key::Named(NamedKey::ArrowRight) => {
+                                        mouse.rotate_by_keyboard(-5.0_f32.to_radians(), 0.0);
+                                    }
+
+                                    Key::Named(NamedKey::ArrowUp) => {
+                                        mouse.rotate_by_keyboard(0.0, 5.0_f32.to_radians());
+                                    }
+
+                                    Key::Named(NamedKey::ArrowDown) => {
+                                        mouse.rotate_by_keyboard(0.0, -5.0_f32.to_radians());
+                                    }
+
+                                    Key::Character(ref value) if value.eq_ignore_ascii_case("r") => {
+                                        mouse.reset();
+                                    }
+
+                                    _ => {}
+                                }
                             }
                         }
 

@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3};
+use glam::{Vec3};
 use winit::{
     event::ElementState,
     keyboard::KeyCode,
@@ -22,10 +22,6 @@ pub struct Navigation {
     sprint: bool,
 
     speed: f32,
-
-    max_horizontal_radius: f32,
-    min_height: f32,
-    max_height: f32,
 }
 
 impl Navigation {
@@ -46,10 +42,6 @@ impl Navigation {
             sprint: false,
 
             speed: 1.5,
-
-            max_horizontal_radius: 3.0,
-            min_height: -1.5,
-            max_height: 1.5,
         }
     }
 
@@ -70,6 +62,15 @@ impl Navigation {
         self.up = false;
         self.down = false;
         self.sprint = false;
+    }
+
+    pub fn is_moving(&self) -> bool {
+        self.forward
+            || self.backward
+            || self.left
+            || self.right
+            || self.up
+            || self.down
     }
 
     pub fn handle_key(

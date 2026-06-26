@@ -102,6 +102,13 @@ impl KeyboardOrientation {
         self.look_up = false;
         self.look_down = false;
     }
+
+    pub fn is_rotating(&self) -> bool {
+        self.look_left
+            || self.look_right
+            || self.look_up
+            || self.look_down
+    }
 }
 
 impl OrientationSource for KeyboardOrientation {

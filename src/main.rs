@@ -107,8 +107,6 @@ fn main() {
 
     event_loop
         .run(move |event, event_loop| {
-            event_loop.set_control_flow(ControlFlow::Poll);
-
             match event {
                 Event::WindowEvent {
                     window_id,
@@ -147,6 +145,8 @@ fn main() {
                                     code,
                                     key_event.state,
                                 );
+
+                                window.request_redraw();
                             }
 
                             /*
@@ -259,14 +259,14 @@ fn main() {
                 }
 
                 Event::AboutToWait => {
+                    let mut needs_redraw = false;
+
                     if shared_dome_config.take_dirty() {
-                        let config =
-                            shared_dome_config.get();
+                        let config = shared_dome_config.get();
 
                         navigation.set_dome_radius(config.radius);
 
-                        let (vertices, indices) =
-                            config.build_mesh();
+                        let (vertices, indices) = config.build_mesh();
 
                         renderer.update_dome_mesh(
                             &vertices,
@@ -282,9 +282,24 @@ fn main() {
                             config.horizontal_segments,
                             config.vertical_segments,
                         );
+
+                        needs_redraw = true;
                     }
 
-                    window.request_redraw();
+                    let active_motion =
+                        navigation.is_moving()
+                            || head_orientation.is_rotating();
+
+                    if active_motion {
+                        event_loop.set_control_flow(ControlFlow::Poll);
+                        needs_redraw = true;
+                    } else {
+                        event_loop.set_control_flow(ControlFlow::Wait);
+                    }
+
+                    if needs_redraw {
+                        window.request_redraw();
+                    }
                 }
 
                 _ => {}

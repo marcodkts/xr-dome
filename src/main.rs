@@ -15,7 +15,7 @@ use winit::{
     event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
-    window::WindowBuilder,
+    window::{Fullscreen, WindowBuilder},
 };
 
 fn main() {
@@ -32,6 +32,8 @@ fn main() {
             .expect("Não foi possível criar a janela"),
     );
 
+    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+
     let shared_dome_config = SharedDomeConfig::new(DomeConfig::default());
 
     control_server::spawn_control_server(shared_dome_config.clone());
@@ -39,12 +41,20 @@ fn main() {
     let initial_config = shared_dome_config.get();
     let (vertices, indices) = initial_config.build_mesh();
 
+    let panel_radius = 3.5;
+    let panel_yaw_degrees = 120.0_f32;
+
+    let panel_width = panel_radius * panel_yaw_degrees.to_radians();
+
+    let panel_aspect = 1915.0 / 821.0;
+    let panel_height = panel_width / panel_aspect;
+
     let (panel_vertices, panel_indices) = panel::generate_curved_panel(
-        2.8,
-        1.575,
-        3.4,
-        96,
-        12,
+        panel_width,
+        panel_height,
+        panel_radius,
+        192, // mais segmentos horizontais para curva suave
+        24,  // mais segmentos verticais
     );
 
     let mut renderer = pollster::block_on(Renderer::new(
@@ -53,7 +63,7 @@ fn main() {
         &indices,
         &panel_vertices,
         &panel_indices,
-        Some("assets/PM5644.png"),
+        Some("assets/image2.png"),
     ));
 
     let mut mouse = MouseOrientation::default();
@@ -85,6 +95,14 @@ fn main() {
                                 && !key_event.repeat
                             {
                                 match key_event.logical_key {
+                                    Key::Named(NamedKey::F11) => {
+                                        if window.fullscreen().is_some() {
+                                            window.set_fullscreen(None);
+                                        } else {
+                                            window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                                        }
+                                    }
+
                                     Key::Named(NamedKey::Escape) => {
                                         event_loop.exit();
                                     }

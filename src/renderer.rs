@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{EulerRot, Mat4, Quat};
+use glam::{EulerRot, Mat4, Quat, Vec3};
 use wgpu::util::DeviceExt;
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -366,7 +366,23 @@ impl Renderer {
             orientation.roll,
         );
 
-        let view = Mat4::from_quat(camera_rotation.conjugate());
+        // Distância que o observador sai do centro do domo.
+        let viewer_orbit_radius = 1.5;
+
+        // Posição orbital baseada apenas no yaw.
+        // Em yaw = 0, aproxima o observador do painel frontal.
+        let camera_position = Vec3::new(
+            -orientation.yaw.sin() * viewer_orbit_radius,
+            0.0,
+            -orientation.yaw.cos() * viewer_orbit_radius,
+        );
+
+        let camera_transform = Mat4::from_rotation_translation(
+            camera_rotation,
+            camera_position,
+        );
+
+        let view = camera_transform.inverse();
 
         let camera_uniform = CameraUniform {
             view_projection:

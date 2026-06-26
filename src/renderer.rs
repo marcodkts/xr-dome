@@ -348,59 +348,55 @@ impl Renderer {
         self.surface.configure(&self.device, &self.config);
     }
 
-    fn update_camera(&self, orientation: Orientation) {
-        let aspect =
-            self.config.width as f32 / self.config.height as f32;
+    fn update_camera(
+    &self,
+    orientation: Orientation,
+    position: Vec3,
+) {
+    let aspect =
+        self.config.width as f32
+            / self.config.height as f32;
 
-        let projection = Mat4::perspective_rh(
-            60.0_f32.to_radians(),
-            aspect,
-            0.1,
-            100.0,
-        );
+    let projection = Mat4::perspective_rh(
+        60.0_f32.to_radians(),
+        aspect,
+        0.1,
+        100.0,
+    );
 
-        let camera_rotation = Quat::from_euler(
-            EulerRot::YXZ,
-            orientation.yaw,
-            orientation.pitch,
-            orientation.roll,
-        );
+    let camera_rotation = Quat::from_euler(
+        EulerRot::YXZ,
+        orientation.yaw,
+        orientation.pitch,
+        orientation.roll,
+    );
 
-        // Distância que o observador sai do centro do domo.
-        let viewer_orbit_radius = 1.5;
-
-        // Posição orbital baseada apenas no yaw.
-        // Em yaw = 0, aproxima o observador do painel frontal.
-        let camera_position = Vec3::new(
-            -orientation.yaw.sin() * viewer_orbit_radius,
-            0.0,
-            -orientation.yaw.cos() * viewer_orbit_radius,
-        );
-
-        let camera_transform = Mat4::from_rotation_translation(
+    let camera_transform =
+        Mat4::from_rotation_translation(
             camera_rotation,
-            camera_position,
+            position,
         );
 
-        let view = camera_transform.inverse();
+    let view = camera_transform.inverse();
 
-        let camera_uniform = CameraUniform {
-            view_projection:
-                (projection * view).to_cols_array_2d(),
-        };
+    let camera_uniform = CameraUniform {
+        view_projection:
+            (projection * view).to_cols_array_2d(),
+    };
 
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::bytes_of(&camera_uniform),
-        );
-    }
+    self.queue.write_buffer(
+        &self.camera_buffer,
+        0,
+        bytemuck::bytes_of(&camera_uniform),
+    );
+}
 
     pub fn render(
         &mut self,
         orientation: Orientation,
+        position: Vec3,
     ) -> Result<(), wgpu::SurfaceError> {
-        self.update_camera(orientation);
+        self.update_camera(orientation, position);
 
         let frame = self.surface.get_current_texture()?;
 

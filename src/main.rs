@@ -12,7 +12,7 @@ use std::{
     sync::Arc,
     time::Instant,
 };
-use surface::SurfaceConfig;
+use surface::{SurfaceConfig, SurfaceHit};
 use dome_config::{DomeConfig, SharedDomeConfig};
 use glam::Vec3;
 use navigation::Navigation;
@@ -22,7 +22,7 @@ use orientation::{
 };
 use renderer::Renderer;
 use winit::{
-    event::{ElementState, Event, WindowEvent},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey, PhysicalKey},
     window::{Fullscreen, WindowBuilder},
@@ -100,6 +100,12 @@ fn main() {
 
     let mut last_center_hit_cell: Option<(i32, i32)> = None;
 
+    let mut last_surface_hit: Option<SurfaceHit> = None;
+    let mut left_down_hit: Option<SurfaceHit> = None;
+
+    const SURFACE_PIXEL_WIDTH: u32 = 1915;
+    const SURFACE_PIXEL_HEIGHT: u32 = 821;
+
     let mut last_frame = Instant::now();
 
     event_loop
@@ -130,6 +136,75 @@ fn main() {
                         WindowEvent::Focused(false) => {
                             navigation.clear_input();
                             head_orientation.clear_input();
+                        }
+
+                        WindowEvent::MouseInput {
+                            state,
+                            button: MouseButton::Left,
+                            ..
+                        } => {
+                            match state {
+                                ElementState::Pressed => {
+                                    left_down_hit = last_surface_hit;
+
+                                    if let Some(hit) = last_surface_hit {
+                                        let (x, y) = hit.to_pixel(
+                                            SURFACE_PIXEL_WIDTH,
+                                            SURFACE_PIXEL_HEIGHT,
+                                        );
+
+                                        println!(
+                                            "[surface pointer] down u={:.3} v={:.3} pixel=({}, {})",
+                                            hit.u,
+                                            hit.v,
+                                            x,
+                                            y,
+                                        );
+                                    } else {
+                                        println!("[surface pointer] down outside surface");
+                                    }
+                                }
+
+                                ElementState::Released => {
+                                    if let Some(hit) = last_surface_hit {
+                                        let (x, y) = hit.to_pixel(
+                                            SURFACE_PIXEL_WIDTH,
+                                            SURFACE_PIXEL_HEIGHT,
+                                        );
+
+                                        let is_click = left_down_hit
+                                            .map(|down| {
+                                                (down.u - hit.u).abs() < 0.01
+                                                    && (down.v - hit.v).abs() < 0.01
+                                            })
+                                            .unwrap_or(false);
+
+                                        if is_click {
+                                            println!(
+                                                "[surface pointer] click u={:.3} v={:.3} pixel=({}, {})",
+                                                hit.u,
+                                                hit.v,
+                                                x,
+                                                y,
+                                            );
+                                        } else {
+                                            println!(
+                                                "[surface pointer] up u={:.3} v={:.3} pixel=({}, {})",
+                                                hit.u,
+                                                hit.v,
+                                                x,
+                                                y,
+                                            );
+                                        }
+                                    } else {
+                                        println!("[surface pointer] up outside surface");
+                                    }
+
+                                    left_down_hit = None;
+                                }
+                            }
+
+                            window.request_redraw();
                         }
 
                         WindowEvent::KeyboardInput {
@@ -295,7 +370,9 @@ fn main() {
                                     }
                                 }
 
-                            match surface_hit.or(center_hit) {
+                            last_surface_hit = surface_hit;
+
+                            match surface_hit {
                                 Some(hit) => {
                                     let cursor_mesh =
                                         main_surface.build_cursor_mesh(

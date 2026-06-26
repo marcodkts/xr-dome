@@ -31,6 +31,24 @@ pub struct SurfaceHit {
     pub distance: f32,
 }
 
+impl SurfaceHit {
+    pub fn to_pixel(
+        &self,
+        width: u32,
+        height: u32,
+    ) -> (u32, u32) {
+        let x = (self.u.clamp(0.0, 1.0)
+            * (width.saturating_sub(1)) as f32)
+            .round() as u32;
+
+        let y = (self.v.clamp(0.0, 1.0)
+            * (height.saturating_sub(1)) as f32)
+            .round() as u32;
+
+        (x, y)
+    }
+}
+
 impl SurfaceConfig {
     pub fn main_workspace() -> Self {
         Self {

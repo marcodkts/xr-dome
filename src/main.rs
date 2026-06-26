@@ -264,8 +264,8 @@ fn main() {
                             main_surface.build_mesh(config.radius);
 
                         renderer.update_surface_mesh(
-                            &surface_vertices,
-                            &surface_indices,
+                            &surface_mesh.vertices,
+                            &surface_mesh.indices,
                         );
 
                         println!(

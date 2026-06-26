@@ -80,23 +80,23 @@ impl Navigation {
         let pressed = state == ElementState::Pressed;
 
         match key {
-            KeyCode::KeyW | KeyCode::ArrowUp => {
+            KeyCode::KeyW => {
                 self.forward = pressed;
             }
 
-            KeyCode::KeyS | KeyCode::ArrowDown => {
+            KeyCode::KeyS => {
                 self.backward = pressed;
             }
 
-            KeyCode::KeyA | KeyCode::ArrowLeft => {
+            KeyCode::KeyA => {
                 self.left = pressed;
             }
 
-            KeyCode::KeyD | KeyCode::ArrowRight => {
+            KeyCode::KeyD => {
                 self.right = pressed;
             }
 
-            KeyCode::KeyE | KeyCode::Space => {
+            KeyCode::KeyE => {
                 self.up = pressed;
             }
 

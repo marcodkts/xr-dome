@@ -16,7 +16,7 @@ use dome_config::{DomeConfig, SharedDomeConfig};
 use glam::Vec3;
 use navigation::Navigation;
 use orientation::{
-    mouse::MouseOrientation,
+    keyboard::KeyboardOrientation,
     OrientationSource,
 };
 use renderer::Renderer;
@@ -91,11 +91,7 @@ fn main() {
             Some("assets/image2.png"),
         ));
 
-    /*
-     * Mouse simula apenas a orientação da cabeça.
-     */
-
-    let mut mouse = MouseOrientation::default();
+    let mut head_orientation = KeyboardOrientation::default();
 
     /*
      * O observador começa deslocado do centro,
@@ -114,16 +110,10 @@ fn main() {
             event_loop.set_control_flow(ControlFlow::Poll);
 
             match event {
-                Event::DeviceEvent { event, .. } => {
-                    mouse.handle_device_event(&event);
-                }
-
                 Event::WindowEvent {
                     window_id,
                     event,
                 } if window_id == window.id() => {
-                    mouse.handle_window_event(&event);
-
                     match event {
                         WindowEvent::CloseRequested => {
                             event_loop.exit();
@@ -131,6 +121,7 @@ fn main() {
 
                         WindowEvent::Focused(false) => {
                             navigation.clear_input();
+                            head_orientation.clear_input();
                         }
 
                         WindowEvent::KeyboardInput {
@@ -145,7 +136,14 @@ fn main() {
                             if let PhysicalKey::Code(code) =
                                 key_event.physical_key
                             {
+                                // WASD, Q/E e Shift.
                                 navigation.handle_key(
+                                    code,
+                                    key_event.state,
+                                );
+
+                                // Somente as setas.
+                                head_orientation.handle_key(
                                     code,
                                     key_event.state,
                                 );
@@ -189,7 +187,7 @@ fn main() {
                                     Key::Named(
                                         NamedKey::Home,
                                     ) => {
-                                        mouse.reset();
+                                        head_orientation.reset();
                                         navigation.reset();
                                     }
 
@@ -199,9 +197,7 @@ fn main() {
                                                 "r",
                                             ) =>
                                     {
-                                        // Recentraliza apenas
-                                        // a cabeça.
-                                        mouse.reset();
+                                        head_orientation.reset();
                                     }
 
                                     _ => {}
@@ -223,8 +219,10 @@ fn main() {
 
                             last_frame = now;
 
+                            head_orientation.update(delta_seconds);
+
                             let orientation =
-                                mouse.orientation();
+                                head_orientation.orientation();
 
                             navigation.update(
                                 delta_seconds,

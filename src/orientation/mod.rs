@@ -1,4 +1,4 @@
-pub mod mouse;
+pub mod keyboard;
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Orientation {

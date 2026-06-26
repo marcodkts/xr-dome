@@ -265,8 +265,7 @@ impl SurfaceConfig {
         let surface_radius = self.surface_radius(dome_radius);
 
         /*
-        * Um pouco mais perto da câmera do que a surface,
-        * para não brigar visualmente com ela.
+        * Um pouco mais perto da câmera do que a surface.
         */
         let radius = (surface_radius - 0.02).max(0.1);
 
@@ -289,39 +288,87 @@ impl SurfaceConfig {
             pitch_center + (0.5 - hit.v) * pitch_span;
 
         let size = size_degrees.to_radians();
+
+        /*
+        * Espessura angular da mira.
+        * Mantém visível sem virar um bloco.
+        */
+        let thickness = (size * 0.025).max(0.0005);
         let half = size * 0.5;
 
-        let points = [
-            (hit_yaw - half, hit_pitch + half, [0.0, 0.0]),
-            (hit_yaw + half, hit_pitch + half, [1.0, 0.0]),
-            (hit_yaw - half, hit_pitch - half, [0.0, 1.0]),
-            (hit_yaw + half, hit_pitch - half, [1.0, 1.0]),
-        ];
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
 
-        let vertices = points
-            .into_iter()
-            .map(|(yaw, pitch, uv)| {
-                let px = radius * pitch.cos() * yaw.sin();
-                let py = radius * pitch.sin();
-                let pz = -radius * pitch.cos() * yaw.cos();
+        /*
+        * Linha horizontal.
+        */
+        push_angular_quad(
+            &mut vertices,
+            &mut indices,
+            radius,
+            hit_yaw - half,
+            hit_yaw + half,
+            hit_pitch - thickness,
+            hit_pitch + thickness,
+        );
 
-                Vertex {
-                    position: [px, py, pz],
-                    uv,
-                }
-            })
-            .collect();
-
-        let indices = vec![
-            0, 2, 1,
-            1, 2, 3,
-        ];
+        /*
+        * Linha vertical.
+        */
+        push_angular_quad(
+            &mut vertices,
+            &mut indices,
+            radius,
+            hit_yaw - thickness,
+            hit_yaw + thickness,
+            hit_pitch - half,
+            hit_pitch + half,
+        );
 
         SurfaceMesh {
             vertices,
             indices,
         }
     }
+}
+
+fn push_angular_quad(
+    vertices: &mut Vec<Vertex>,
+    indices: &mut Vec<u32>,
+    radius: f32,
+    yaw_min: f32,
+    yaw_max: f32,
+    pitch_min: f32,
+    pitch_max: f32,
+) {
+    let base = vertices.len() as u32;
+
+    let points = [
+        (yaw_min, pitch_max, [0.0, 0.0]),
+        (yaw_max, pitch_max, [1.0, 0.0]),
+        (yaw_min, pitch_min, [0.0, 1.0]),
+        (yaw_max, pitch_min, [1.0, 1.0]),
+    ];
+
+    for (yaw, pitch, uv) in points {
+        let px = radius * pitch.cos() * yaw.sin();
+        let py = radius * pitch.sin();
+        let pz = -radius * pitch.cos() * yaw.cos();
+
+        vertices.push(Vertex {
+            position: [px, py, pz],
+            uv,
+        });
+    }
+
+    indices.extend_from_slice(&[
+        base,
+        base + 2,
+        base + 1,
+        base + 1,
+        base + 2,
+        base + 3,
+    ]);
 }
 
 fn angular_delta(angle: f32, center: f32) -> f32 {

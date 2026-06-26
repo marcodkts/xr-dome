@@ -301,7 +301,7 @@ fn main() {
                                         main_surface.build_cursor_mesh(
                                             current_dome_radius,
                                             hit,
-                                            0.8,
+                                            0.35,
                                         );
 
                                     renderer.update_cursor_mesh(

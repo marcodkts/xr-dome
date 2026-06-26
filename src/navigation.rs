@@ -10,6 +10,9 @@ pub struct Navigation {
     position: Vec3,
     initial_position: Vec3,
 
+    dome_radius: f32,
+    safety_margin: f32,
+
     forward: bool,
     backward: bool,
     left: bool,
@@ -26,10 +29,13 @@ pub struct Navigation {
 }
 
 impl Navigation {
-    pub fn new(position: Vec3) -> Self {
+    pub fn new(position: Vec3, dome_radius: f32) -> Self {
         Self {
             position,
             initial_position: position,
+
+            dome_radius,
+            safety_margin: 0.2,
 
             forward: false,
             backward: false,
@@ -177,24 +183,23 @@ impl Navigation {
     }
 
     fn apply_bounds(&mut self) {
-        let horizontal = Vec2::new(
-            self.position.x,
-            self.position.z,
-        );
+        let maximum_distance =
+            (self.dome_radius - self.safety_margin).max(0.1);
 
-        let distance = horizontal.length();
+        let distance = self.position.length();
 
-        if distance > self.max_horizontal_radius {
-            let limited = horizontal.normalize()
-                * self.max_horizontal_radius;
-
-            self.position.x = limited.x;
-            self.position.z = limited.y;
+        if distance > maximum_distance {
+            self.position =
+                self.position.normalize() * maximum_distance;
         }
+    }
 
-        self.position.y = self.position.y.clamp(
-            self.min_height,
-            self.max_height,
-        );
+    pub fn set_dome_radius(&mut self, radius: f32) {
+        self.dome_radius =
+            radius.max(self.safety_margin + 0.1);
+
+        // Reposiciona imediatamente caso a redução
+        // do domo deixe a câmera do lado de fora.
+        self.apply_bounds();
     }
 }

@@ -104,6 +104,7 @@ fn main() {
 
     let mut navigation = Navigation::new(
         Vec3::new(0.0, 0.0, -2.0),
+        initial_config.radius,
     );
 
     let mut last_frame = Instant::now();
@@ -263,6 +264,8 @@ fn main() {
                     if shared_dome_config.take_dirty() {
                         let config =
                             shared_dome_config.get();
+
+                        navigation.set_dome_radius(config.radius);
 
                         let (vertices, indices) =
                             config.build_mesh();

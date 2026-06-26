@@ -197,7 +197,7 @@ impl Renderer {
             });
 
         let dome_texture =
-            Texture::generated_background(&device, &queue, 1024, 512);
+            Texture::generated_background(&device, &queue, 2048, 1024);
 
         let panel_texture =
             Texture::from_path_or_generated(

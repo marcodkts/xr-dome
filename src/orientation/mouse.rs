@@ -42,19 +42,6 @@ impl MouseOrientation {
         }
     }
 
-    pub fn rotate_by_keyboard(&mut self, yaw_delta: f32, pitch_delta: f32) {
-        self.pose.yaw += yaw_delta;
-        self.pose.pitch += pitch_delta;
-
-        self.clamp_pitch();
-
-        println!(
-            "keyboard yaw={:.2} pitch={:.2}",
-            self.pose.yaw.to_degrees(),
-            self.pose.pitch.to_degrees(),
-        );
-    }
-
     pub fn reset(&mut self) {
         self.pose = Orientation::default();
         println!("orientation reset");

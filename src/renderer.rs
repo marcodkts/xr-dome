@@ -3,13 +3,19 @@ use std::sync::Arc;
 use bytemuck::{Pod, Zeroable};
 use glam::{EulerRot, Mat4, Quat, Vec3};
 use wgpu::util::DeviceExt;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    window::Window,
+};
 
 use crate::{
     dome::Vertex,
     orientation::Orientation,
+    ray::Ray,
     texture::Texture,
 };
+
+const CAMERA_VERTICAL_FOV_DEGREES: f32 = 60.0;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -348,6 +354,63 @@ impl Renderer {
         self.surface.configure(&self.device, &self.config);
     }
 
+    pub fn screen_ray(
+        &self,
+        cursor_position: PhysicalPosition<f64>,
+        orientation: Orientation,
+        camera_position: Vec3,
+    ) -> Option<Ray> {
+        if self.config.width == 0 || self.config.height == 0 {
+            return None;
+        }
+
+        let width = self.config.width as f32;
+        let height = self.config.height as f32;
+
+        let x = cursor_position.x as f32;
+        let y = cursor_position.y as f32;
+
+        if x < 0.0 || y < 0.0 || x > width || y > height {
+            return None;
+        }
+
+        let ndc_x = (x / width) * 2.0 - 1.0;
+        let ndc_y = 1.0 - (y / height) * 2.0;
+
+        let aspect = width / height;
+
+        let tan_half_fov =
+            (CAMERA_VERTICAL_FOV_DEGREES.to_radians() * 0.5)
+                .tan();
+
+        /*
+        * Direção em espaço de câmera.
+        * A câmera olha para -Z.
+        */
+
+        let camera_direction = Vec3::new(
+            ndc_x * aspect * tan_half_fov,
+            ndc_y * tan_half_fov,
+            -1.0,
+        )
+        .normalize();
+
+        let camera_rotation = Quat::from_euler(
+            EulerRot::YXZ,
+            orientation.yaw,
+            orientation.pitch,
+            orientation.roll,
+        );
+
+        let world_direction =
+            camera_rotation * camera_direction;
+
+        Some(Ray::new(
+            camera_position,
+            world_direction,
+        ))
+    }
+
     fn update_camera(
     &self,
     orientation: Orientation,
@@ -358,7 +421,7 @@ impl Renderer {
             / self.config.height as f32;
 
     let projection = Mat4::perspective_rh(
-        60.0_f32.to_radians(),
+        CAMERA_VERTICAL_FOV_DEGREES.to_radians(),
         aspect,
         0.1,
         100.0,

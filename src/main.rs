@@ -6,6 +6,7 @@ mod orientation;
 mod surface;
 mod renderer;
 mod texture;
+mod ray;
 
 use std::{
     sync::Arc,
@@ -90,6 +91,13 @@ fn main() {
         initial_config.radius,
     );
 
+    let mut current_dome_radius = initial_config.radius;
+
+    let mut cursor_position:
+        Option<winit::dpi::PhysicalPosition<f64>> = None;
+
+    let mut last_hit_cell: Option<(i32, i32)> = None;
+
     let mut last_frame = Instant::now();
 
     event_loop
@@ -100,6 +108,19 @@ fn main() {
                     event,
                 } if window_id == window.id() => {
                     match event {
+                        WindowEvent::CursorMoved {
+                            position,
+                            ..
+                        } => {
+                            cursor_position = Some(position);
+                            window.request_redraw();
+                        }
+
+                        WindowEvent::CursorLeft { .. } => {
+                            cursor_position = None;
+                            last_hit_cell = None;
+                            window.set_title("XR Dome");
+                        }
                         WindowEvent::CloseRequested => {
                             event_loop.exit();
                         }
@@ -216,6 +237,46 @@ fn main() {
                                 orientation,
                             );
 
+                            let surface_hit = cursor_position
+                                .and_then(|cursor_position| {
+                                    renderer.screen_ray(
+                                        cursor_position,
+                                        orientation,
+                                        navigation.position(),
+                                    )
+                                })
+                                .and_then(|ray| {
+                                    main_surface.hit_test_ray(
+                                        current_dome_radius,
+                                        ray,
+                                    )
+                                });
+
+                            let hit_cell = surface_hit.map(|hit| {
+                                (
+                                    (hit.u * 100.0) as i32,
+                                    (hit.v * 100.0) as i32,
+                                )
+                            });
+
+                            if hit_cell != last_hit_cell {
+                                last_hit_cell = hit_cell;
+
+                                match surface_hit {
+                                    Some(hit) => {
+                                        window.set_title(&format!(
+                                            "XR Dome | surface u={:.2} v={:.2}",
+                                            hit.u,
+                                            hit.v,
+                                        ));
+                                    }
+
+                                    None => {
+                                        window.set_title("XR Dome | no surface hit");
+                                    }
+                                }
+                            }
+
                             match renderer.render(
                                 orientation,
                                 navigation.position(),
@@ -250,6 +311,8 @@ fn main() {
 
                     if shared_dome_config.take_dirty() {
                         let config = shared_dome_config.get();
+
+                        current_dome_radius = config.radius;
 
                         navigation.set_dome_radius(config.radius);
 

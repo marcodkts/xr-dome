@@ -1,4 +1,11 @@
-use crate::dome::Vertex;
+use std::f32::consts::{PI, TAU};
+
+use glam::Vec3;
+
+use crate::{
+    dome::Vertex,
+    ray::Ray,
+};
 
 #[derive(Clone, Debug)]
 pub struct SurfaceConfig {
@@ -16,6 +23,14 @@ pub struct SurfaceMesh {
     pub indices: Vec<u32>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct SurfaceHit {
+    pub position: Vec3,
+    pub u: f32,
+    pub v: f32,
+    pub distance: f32,
+}
+
 impl SurfaceConfig {
     pub fn main_workspace() -> Self {
         Self {
@@ -30,8 +45,7 @@ impl SurfaceConfig {
     }
 
     pub fn build_mesh(&self, dome_radius: f32) -> SurfaceMesh {
-        let radius =
-            (dome_radius - self.radius_offset).max(0.1);
+        let radius = self.surface_radius(dome_radius);
 
         let yaw_center =
             self.yaw_center_degrees.to_radians();
@@ -49,7 +63,7 @@ impl SurfaceConfig {
          * 120° de largura em 21:9 resulta em uma altura
          * angular menor, sem esticar a textura.
          */
-        let pitch_span = yaw_span / self.aspect;
+        let pitch_span = self.pitch_span_radians();
 
         let mut vertices =
             Vec::with_capacity(
@@ -120,4 +134,129 @@ impl SurfaceConfig {
             indices,
         }
     }
+
+    pub fn surface_radius(&self, dome_radius: f32) -> f32 {
+        (dome_radius - self.radius_offset).max(0.1)
+    }
+
+    pub fn pitch_span_radians(&self) -> f32 {
+        self.yaw_span_degrees.to_radians() / self.aspect
+    }
+
+    pub fn hit_test_ray(
+        &self,
+        dome_radius: f32,
+        ray: Ray,
+    ) -> Option<SurfaceHit> {
+        let radius = self.surface_radius(dome_radius);
+
+        /*
+        * Interseção ray-esfera.
+        * A surface está apoiada em uma esfera centrada na origem.
+        */
+
+        let a = ray.direction.length_squared();
+
+        if a <= f32::EPSILON {
+            return None;
+        }
+
+        let b = 2.0 * ray.origin.dot(ray.direction);
+
+        let c =
+            ray.origin.length_squared() - radius * radius;
+
+        let discriminant = b * b - 4.0 * a * c;
+
+        if discriminant < 0.0 {
+            return None;
+        }
+
+        let sqrt_discriminant = discriminant.sqrt();
+
+        let t0 =
+            (-b - sqrt_discriminant) / (2.0 * a);
+
+        let t1 =
+            (-b + sqrt_discriminant) / (2.0 * a);
+
+        let distance = if t0 > 0.001 {
+            t0
+        } else if t1 > 0.001 {
+            t1
+        } else {
+            return None;
+        };
+
+        let position = ray.at(distance);
+
+        /*
+        * Converte o ponto 3D da esfera de volta para
+        * yaw/pitch usando a mesma parametrização da mesh.
+        */
+
+        let normalized = position / radius;
+
+        let pitch = normalized.y
+            .clamp(-1.0, 1.0)
+            .asin();
+
+        let yaw = normalized.x.atan2(-normalized.z);
+
+        let yaw_center =
+            self.yaw_center_degrees.to_radians();
+
+        let pitch_center =
+            self.pitch_center_degrees.to_radians();
+
+        let yaw_span =
+            self.yaw_span_degrees.to_radians();
+
+        let pitch_span =
+            self.pitch_span_radians();
+
+        let yaw_delta =
+            angular_delta(yaw, yaw_center);
+
+        let pitch_delta =
+            pitch - pitch_center;
+
+        if yaw_delta.abs() > yaw_span * 0.5 {
+            return None;
+        }
+
+        if pitch_delta.abs() > pitch_span * 0.5 {
+            return None;
+        }
+
+        /*
+        * Mesma relação usada no build_mesh:
+        *
+        * yaw   = center + (u - 0.5) * yaw_span
+        * pitch = center + (0.5 - v) * pitch_span
+        */
+
+        let u =
+            0.5 + yaw_delta / yaw_span;
+
+        let v =
+            0.5 - pitch_delta / pitch_span;
+
+        if !(0.0..=1.0).contains(&u)
+            || !(0.0..=1.0).contains(&v)
+        {
+            return None;
+        }
+
+        Some(SurfaceHit {
+            position,
+            u,
+            v,
+            distance,
+        })
+    }
+}
+
+fn angular_delta(angle: f32, center: f32) -> f32 {
+    (angle - center + PI).rem_euclid(TAU) - PI
 }

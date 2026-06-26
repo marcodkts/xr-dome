@@ -295,7 +295,7 @@ fn main() {
                                     }
                                 }
 
-                            match surface_hit {
+                            match surface_hit.or(center_hit) {
                                 Some(hit) => {
                                     let cursor_mesh =
                                         main_surface.build_cursor_mesh(
@@ -314,7 +314,7 @@ fn main() {
                                     renderer.clear_cursor_mesh();
                                 }
                             }
-                            
+
                             let hit_cell = surface_hit.map(|hit| {
                                 (
                                     (hit.u * 100.0) as i32,

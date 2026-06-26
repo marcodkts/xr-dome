@@ -65,11 +65,6 @@ impl Renderer {
         surface_vertices: &[Vertex],
         surface_indices: &[u32],
         surface_texture_path: Option<&str>,
-        cursor_vertex_buffer,
-        cursor_index_buffer,
-        cursor_index_count: 0,
-        _cursor_texture: cursor_texture,
-        cursor_texture_bind_group,
     ) -> Self {
         let size = window.inner_size();
 
@@ -78,27 +73,6 @@ impl Renderer {
         let surface = instance
             .create_surface(window)
             .expect("Não foi possível criar a superfície");
-
-        let cursor_dummy_vertices = [Vertex {
-            position: [0.0, 0.0, 0.0],
-            uv: [0.0, 0.0],
-        }];
-
-        let cursor_dummy_indices = [0_u32];
-
-        let cursor_vertex_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Cursor vertex buffer"),
-                contents: bytemuck::cast_slice(&cursor_dummy_vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-
-        let cursor_index_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Cursor index buffer"),
-                contents: bytemuck::cast_slice(&cursor_dummy_indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -170,7 +144,28 @@ impl Renderer {
                 contents: bytemuck::cast_slice(surface_indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
+        
+        let cursor_dummy_vertices = [Vertex {
+            position: [0.0, 0.0, 0.0],
+            uv: [0.0, 0.0],
+        }];
 
+        let cursor_dummy_indices = [0_u32];
+
+        let cursor_vertex_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cursor vertex buffer"),
+                contents: bytemuck::cast_slice(&cursor_dummy_vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let cursor_index_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cursor index buffer"),
+                contents: bytemuck::cast_slice(&cursor_dummy_indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+            
         let camera_uniform = CameraUniform {
             view_projection: Mat4::IDENTITY.to_cols_array_2d(),
         };
@@ -345,14 +340,20 @@ impl Renderer {
             surface_index_buffer,
             surface_index_count: surface_indices.len() as u32,
 
+            cursor_vertex_buffer,
+            cursor_index_buffer,
+            cursor_index_count: 0,
+
             camera_buffer,
             camera_bind_group,
 
             _dome_texture: dome_texture,
             _surface_texture: surface_texture,
+            _cursor_texture: cursor_texture,
 
             dome_texture_bind_group,
             surface_texture_bind_group,
+            cursor_texture_bind_group,
         }
     }
 

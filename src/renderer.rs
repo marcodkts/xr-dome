@@ -48,6 +48,13 @@ pub struct Renderer {
 
     dome_texture_bind_group: wgpu::BindGroup,
     surface_texture_bind_group: wgpu::BindGroup,
+
+    cursor_vertex_buffer: wgpu::Buffer,
+    cursor_index_buffer: wgpu::Buffer,
+    cursor_index_count: u32,
+
+    _cursor_texture: Texture,
+    cursor_texture_bind_group: wgpu::BindGroup,
 }
 
 impl Renderer {
@@ -58,6 +65,11 @@ impl Renderer {
         surface_vertices: &[Vertex],
         surface_indices: &[u32],
         surface_texture_path: Option<&str>,
+        cursor_vertex_buffer,
+        cursor_index_buffer,
+        cursor_index_count: 0,
+        _cursor_texture: cursor_texture,
+        cursor_texture_bind_group,
     ) -> Self {
         let size = window.inner_size();
 
@@ -66,6 +78,27 @@ impl Renderer {
         let surface = instance
             .create_surface(window)
             .expect("Não foi possível criar a superfície");
+
+        let cursor_dummy_vertices = [Vertex {
+            position: [0.0, 0.0, 0.0],
+            uv: [0.0, 0.0],
+        }];
+
+        let cursor_dummy_indices = [0_u32];
+
+        let cursor_vertex_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cursor vertex buffer"),
+                contents: bytemuck::cast_slice(&cursor_dummy_vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let cursor_index_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cursor index buffer"),
+                contents: bytemuck::cast_slice(&cursor_dummy_indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -212,6 +245,9 @@ impl Renderer {
                 surface_texture_path,
             );
 
+        let cursor_texture =
+            Texture::solid_rgba(&device, &queue, [230, 250, 255, 255]);
+
         let dome_texture_bind_group =
             Self::create_texture_bind_group(
                 &device,
@@ -226,6 +262,14 @@ impl Renderer {
                 &texture_bind_group_layout,
                 &surface_texture,
                 "surface texture bind group",
+            );
+
+        let cursor_texture_bind_group =
+            Self::create_texture_bind_group(
+                &device,
+                &texture_bind_group_layout,
+                &cursor_texture,
+                "Cursor texture bind group",
             );
 
         let shader =
@@ -411,6 +455,23 @@ impl Renderer {
         ))
     }
 
+    pub fn screen_center_ray(
+        &self,
+        orientation: Orientation,
+        camera_position: Vec3,
+    ) -> Option<Ray> {
+        let center = PhysicalPosition::new(
+            self.config.width as f64 * 0.5,
+            self.config.height as f64 * 0.5,
+        );
+
+        self.screen_ray(
+            center,
+            orientation,
+            camera_position,
+        )
+    }
+
     fn update_camera(
     &self,
     orientation: Orientation,
@@ -555,6 +616,30 @@ impl Renderer {
                 0,
                 0..1,
             );
+
+            if self.cursor_index_count > 0 {
+                render_pass.set_bind_group(
+                    1,
+                    &self.cursor_texture_bind_group,
+                    &[],
+                );
+
+                render_pass.set_vertex_buffer(
+                    0,
+                    self.cursor_vertex_buffer.slice(..),
+                );
+
+                render_pass.set_index_buffer(
+                    self.cursor_index_buffer.slice(..),
+                    wgpu::IndexFormat::Uint32,
+                );
+
+                render_pass.draw_indexed(
+                    0..self.cursor_index_count,
+                    0,
+                    0..1,
+                );
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));
@@ -613,5 +698,40 @@ impl Renderer {
             );
 
         self.surface_index_count = indices.len() as u32;
+    }
+
+    pub fn update_cursor_mesh(
+        &mut self,
+        vertices: &[Vertex],
+        indices: &[u32],
+    ) {
+        if vertices.is_empty() || indices.is_empty() {
+            self.cursor_index_count = 0;
+            return;
+        }
+
+        self.cursor_vertex_buffer =
+            self.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Cursor vertex buffer"),
+                    contents: bytemuck::cast_slice(vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                },
+            );
+
+        self.cursor_index_buffer =
+            self.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Cursor index buffer"),
+                    contents: bytemuck::cast_slice(indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                },
+            );
+
+        self.cursor_index_count = indices.len() as u32;
+    }
+
+    pub fn clear_cursor_mesh(&mut self) {
+        self.cursor_index_count = 0;
     }
 }

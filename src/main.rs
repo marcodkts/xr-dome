@@ -98,6 +98,8 @@ fn main() {
 
     let mut last_hit_cell: Option<(i32, i32)> = None;
 
+    let mut last_center_hit_cell: Option<(i32, i32)> = None;
+
     let mut last_frame = Instant::now();
 
     event_loop
@@ -252,6 +254,67 @@ fn main() {
                                     )
                                 });
 
+                                let center_hit = renderer
+                                    .screen_center_ray(
+                                        orientation,
+                                        navigation.position(),
+                                    )
+                                    .and_then(|ray| {
+                                        main_surface.hit_test_ray(
+                                            current_dome_radius,
+                                            ray,
+                                        )
+                                    });
+
+                                let center_hit_cell = center_hit.map(|hit| {
+                                    (
+                                        (hit.u * 100.0) as i32,
+                                        (hit.v * 100.0) as i32,
+                                    )
+                                });
+
+                                if center_hit_cell != last_center_hit_cell {
+                                    last_center_hit_cell = center_hit_cell;
+
+                                    match center_hit {
+                                        Some(hit) => {
+                                            println!(
+                                                "[center ray] hit u={:.3} v={:.3} distance={:.3} position=({:.2}, {:.2}, {:.2})",
+                                                hit.u,
+                                                hit.v,
+                                                hit.distance,
+                                                hit.position.x,
+                                                hit.position.y,
+                                                hit.position.z,
+                                            );
+                                        }
+
+                                        None => {
+                                            println!("[center ray] no hit");
+                                        }
+                                    }
+                                }
+
+                            match surface_hit {
+                                Some(hit) => {
+                                    let cursor_mesh =
+                                        main_surface.build_cursor_mesh(
+                                            current_dome_radius,
+                                            hit,
+                                            0.8,
+                                        );
+
+                                    renderer.update_cursor_mesh(
+                                        &cursor_mesh.vertices,
+                                        &cursor_mesh.indices,
+                                    );
+                                }
+
+                                None => {
+                                    renderer.clear_cursor_mesh();
+                                }
+                            }
+                            
                             let hit_cell = surface_hit.map(|hit| {
                                 (
                                     (hit.u * 100.0) as i32,

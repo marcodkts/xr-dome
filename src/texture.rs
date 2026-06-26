@@ -44,7 +44,6 @@ impl Texture {
             for x in 0..width {
                 let u = x as f32 / (width - 1) as f32;
 
-                let u_center = u - 0.5;
                 let v_center = v - 0.5;
 
                 /*
@@ -200,6 +199,14 @@ impl Texture {
             view,
             sampler,
         }
+    }
+
+    pub fn solid_rgba(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        rgba: [u8; 4],
+    ) -> Self {
+        Self::from_rgba(device, queue, 1, 1, &rgba)
     }
 }
 

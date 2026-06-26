@@ -255,6 +255,73 @@ impl SurfaceConfig {
             distance,
         })
     }
+
+    pub fn build_cursor_mesh(
+        &self,
+        dome_radius: f32,
+        hit: SurfaceHit,
+        size_degrees: f32,
+    ) -> SurfaceMesh {
+        let surface_radius = self.surface_radius(dome_radius);
+
+        /*
+        * Um pouco mais perto da câmera do que a surface,
+        * para não brigar visualmente com ela.
+        */
+        let radius = (surface_radius - 0.02).max(0.1);
+
+        let yaw_center =
+            self.yaw_center_degrees.to_radians();
+
+        let pitch_center =
+            self.pitch_center_degrees.to_radians();
+
+        let yaw_span =
+            self.yaw_span_degrees.to_radians();
+
+        let pitch_span =
+            self.pitch_span_radians();
+
+        let hit_yaw =
+            yaw_center + (hit.u - 0.5) * yaw_span;
+
+        let hit_pitch =
+            pitch_center + (0.5 - hit.v) * pitch_span;
+
+        let size = size_degrees.to_radians();
+        let half = size * 0.5;
+
+        let points = [
+            (hit_yaw - half, hit_pitch + half, [0.0, 0.0]),
+            (hit_yaw + half, hit_pitch + half, [1.0, 0.0]),
+            (hit_yaw - half, hit_pitch - half, [0.0, 1.0]),
+            (hit_yaw + half, hit_pitch - half, [1.0, 1.0]),
+        ];
+
+        let vertices = points
+            .into_iter()
+            .map(|(yaw, pitch, uv)| {
+                let px = radius * pitch.cos() * yaw.sin();
+                let py = radius * pitch.sin();
+                let pz = -radius * pitch.cos() * yaw.cos();
+
+                Vertex {
+                    position: [px, py, pz],
+                    uv,
+                }
+            })
+            .collect();
+
+        let indices = vec![
+            0, 2, 1,
+            1, 2, 3,
+        ];
+
+        SurfaceMesh {
+            vertices,
+            indices,
+        }
+    }
 }
 
 fn angular_delta(angle: f32, center: f32) -> f32 {

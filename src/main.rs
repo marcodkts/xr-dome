@@ -3,7 +3,7 @@ mod dome;
 mod dome_config;
 mod navigation;
 mod orientation;
-mod panel;
+mod surface;
 mod renderer;
 mod texture;
 
@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
     time::Instant,
 };
-
+use surface::SurfaceConfig;
 use dome_config::{DomeConfig, SharedDomeConfig};
 use glam::Vec3;
 use navigation::Navigation;
@@ -60,37 +60,21 @@ fn main() {
         initial_config.build_mesh();
 
     /*
-     * Painel ultrawide curvo
-     */
-    let panel_yaw_degrees = 120.0_f32;
-    let panel_aspect = 1915.0 / 821.0;
-
-    /*
-    * Pequeno offset para o painel ficar na frente da grid,
-    * mas ainda seguir a curvatura do domo.
+    * Surface principal do workspace.
     */
-    let panel_surface_offset = 0.03_f32;
 
-    let panel_horizontal_segments = 192_usize;
-    let panel_vertical_segments = 48_usize;
+    let main_surface = SurfaceConfig::main_workspace();
 
-    let (panel_vertices, panel_indices) =
-        panel::generate_spherical_panel(
-            panel_yaw_degrees,
-            panel_aspect,
-            initial_config.radius,
-            panel_surface_offset,
-            panel_horizontal_segments,
-            panel_vertical_segments,
-        );
+    let surface_mesh =
+        main_surface.build_mesh(initial_config.radius);
 
     let mut renderer =
         pollster::block_on(Renderer::new(
             Arc::clone(&window),
             &vertices,
             &indices,
-            &panel_vertices,
-            &panel_indices,
+            &surface_mesh.vertices,
+            &surface_mesh.indices,
             Some("assets/image2.png"),
         ));
 
@@ -276,19 +260,12 @@ fn main() {
                             &indices,
                         );
 
-                        let (panel_vertices, panel_indices) =
-                            panel::generate_spherical_panel(
-                                panel_yaw_degrees,
-                                panel_aspect,
-                                config.radius,
-                                panel_surface_offset,
-                                panel_horizontal_segments,
-                                panel_vertical_segments,
-                            );
+                        let surface_mesh =
+                            main_surface.build_mesh(config.radius);
 
-                        renderer.update_panel_mesh(
-                            &panel_vertices,
-                            &panel_indices,
+                        renderer.update_surface_mesh(
+                            &surface_vertices,
+                            &surface_indices,
                         );
 
                         println!(

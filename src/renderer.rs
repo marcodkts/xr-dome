@@ -30,18 +30,18 @@ pub struct Renderer {
     dome_index_buffer: wgpu::Buffer,
     dome_index_count: u32,
 
-    panel_vertex_buffer: wgpu::Buffer,
-    panel_index_buffer: wgpu::Buffer,
-    panel_index_count: u32,
+    surface_vertex_buffer: wgpu::Buffer,
+    surface_index_buffer: wgpu::Buffer,
+    surface_index_count: u32,
 
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
     _dome_texture: Texture,
-    _panel_texture: Texture,
+    _surface_texture: Texture,
 
     dome_texture_bind_group: wgpu::BindGroup,
-    panel_texture_bind_group: wgpu::BindGroup,
+    surface_texture_bind_group: wgpu::BindGroup,
 }
 
 impl Renderer {
@@ -49,9 +49,9 @@ impl Renderer {
         window: Arc<Window>,
         dome_vertices: &[Vertex],
         dome_indices: &[u32],
-        panel_vertices: &[Vertex],
-        panel_indices: &[u32],
-        panel_texture_path: Option<&str>,
+        surface_vertices: &[Vertex],
+        surface_indices: &[u32],
+        surface_texture_path: Option<&str>,
     ) -> Self {
         let size = window.inner_size();
 
@@ -118,17 +118,17 @@ impl Renderer {
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-        let panel_vertex_buffer =
+        let surface_vertex_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Panel vertex buffer"),
-                contents: bytemuck::cast_slice(panel_vertices),
+                label: Some("surface vertex buffer"),
+                contents: bytemuck::cast_slice(surface_vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        let panel_index_buffer =
+        let surface_index_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Panel index buffer"),
-                contents: bytemuck::cast_slice(panel_indices),
+                label: Some("surface index buffer"),
+                contents: bytemuck::cast_slice(surface_indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
 
@@ -199,11 +199,11 @@ impl Renderer {
         let dome_texture =
             Texture::generated_background(&device, &queue, 2048, 1024);
 
-        let panel_texture =
+        let surface_texture =
             Texture::from_path_or_generated(
                 &device,
                 &queue,
-                panel_texture_path,
+                surface_texture_path,
             );
 
         let dome_texture_bind_group =
@@ -214,12 +214,12 @@ impl Renderer {
                 "Dome texture bind group",
             );
 
-        let panel_texture_bind_group =
+        let surface_texture_bind_group =
             Self::create_texture_bind_group(
                 &device,
                 &texture_bind_group_layout,
-                &panel_texture,
-                "Panel texture bind group",
+                &surface_texture,
+                "surface texture bind group",
             );
 
         let shader =
@@ -291,18 +291,18 @@ impl Renderer {
             dome_index_buffer,
             dome_index_count: dome_indices.len() as u32,
 
-            panel_vertex_buffer,
-            panel_index_buffer,
-            panel_index_count: panel_indices.len() as u32,
+            surface_vertex_buffer,
+            surface_index_buffer,
+            surface_index_count: surface_indices.len() as u32,
 
             camera_buffer,
             camera_bind_group,
 
             _dome_texture: dome_texture,
-            _panel_texture: panel_texture,
+            _surface_texture: surface_texture,
 
             dome_texture_bind_group,
-            panel_texture_bind_group,
+            surface_texture_bind_group,
         }
     }
 
@@ -473,22 +473,22 @@ impl Renderer {
             // 2. Desenha o painel central por cima do domo
             render_pass.set_bind_group(
                 1,
-                &self.panel_texture_bind_group,
+                &self.surface_texture_bind_group,
                 &[],
             );
 
             render_pass.set_vertex_buffer(
                 0,
-                self.panel_vertex_buffer.slice(..),
+                self.surface_vertex_buffer.slice(..),
             );
 
             render_pass.set_index_buffer(
-                self.panel_index_buffer.slice(..),
+                self.surface_index_buffer.slice(..),
                 wgpu::IndexFormat::Uint32,
             );
 
             render_pass.draw_indexed(
-                0..self.panel_index_count,
+                0..self.surface_index_count,
                 0,
                 0..1,
             );
@@ -526,29 +526,29 @@ impl Renderer {
         self.dome_index_count = indices.len() as u32;
     }
 
-    pub fn update_panel_mesh(
+    pub fn update_surface_mesh(
         &mut self,
         vertices: &[Vertex],
         indices: &[u32],
     ) {
-        self.panel_vertex_buffer =
+        self.surface_vertex_buffer =
             self.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
-                    label: Some("Panel vertex buffer"),
+                    label: Some("surface vertex buffer"),
                     contents: bytemuck::cast_slice(vertices),
                     usage: wgpu::BufferUsages::VERTEX,
                 },
             );
 
-        self.panel_index_buffer =
+        self.surface_index_buffer =
             self.device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
-                    label: Some("Panel index buffer"),
+                    label: Some("surface index buffer"),
                     contents: bytemuck::cast_slice(indices),
                     usage: wgpu::BufferUsages::INDEX,
                 },
             );
 
-        self.panel_index_count = indices.len() as u32;
+        self.surface_index_count = indices.len() as u32;
     }
 }

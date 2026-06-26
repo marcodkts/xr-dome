@@ -62,23 +62,26 @@ fn main() {
     /*
      * Painel ultrawide curvo
      */
-
-    let panel_radius = 3.5;
     let panel_yaw_degrees = 120.0_f32;
-
-    let panel_width =
-        panel_radius * panel_yaw_degrees.to_radians();
-
     let panel_aspect = 1915.0 / 821.0;
-    let panel_height = panel_width / panel_aspect;
+
+    /*
+    * Pequeno offset para o painel ficar na frente da grid,
+    * mas ainda seguir a curvatura do domo.
+    */
+    let panel_surface_offset = 0.03_f32;
+
+    let panel_horizontal_segments = 192_usize;
+    let panel_vertical_segments = 48_usize;
 
     let (panel_vertices, panel_indices) =
-        panel::generate_curved_panel(
-            panel_width,
-            panel_height,
-            panel_radius,
-            192,
-            24,
+        panel::generate_spherical_panel(
+            panel_yaw_degrees,
+            panel_aspect,
+            initial_config.radius,
+            panel_surface_offset,
+            panel_horizontal_segments,
+            panel_vertical_segments,
         );
 
     let mut renderer =
@@ -271,6 +274,21 @@ fn main() {
                         renderer.update_dome_mesh(
                             &vertices,
                             &indices,
+                        );
+
+                        let (panel_vertices, panel_indices) =
+                            panel::generate_spherical_panel(
+                                panel_yaw_degrees,
+                                panel_aspect,
+                                config.radius,
+                                panel_surface_offset,
+                                panel_horizontal_segments,
+                                panel_vertical_segments,
+                            );
+
+                        renderer.update_panel_mesh(
+                            &panel_vertices,
+                            &panel_indices,
                         );
 
                         println!(

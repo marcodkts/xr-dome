@@ -525,4 +525,30 @@ impl Renderer {
 
         self.dome_index_count = indices.len() as u32;
     }
+
+    pub fn update_panel_mesh(
+        &mut self,
+        vertices: &[Vertex],
+        indices: &[u32],
+    ) {
+        self.panel_vertex_buffer =
+            self.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Panel vertex buffer"),
+                    contents: bytemuck::cast_slice(vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                },
+            );
+
+        self.panel_index_buffer =
+            self.device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Panel index buffer"),
+                    contents: bytemuck::cast_slice(indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                },
+            );
+
+        self.panel_index_count = indices.len() as u32;
+    }
 }

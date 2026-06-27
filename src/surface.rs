@@ -9,7 +9,7 @@ pub struct SurfaceConfig {
     pub yaw_center_degrees: f32,
     pub pitch_center_degrees: f32,
     pub yaw_span_degrees: f32,
-    pub aspect: f32,
+    pub pitch_span_degrees: f32,
     pub radius_offset: f32,
     pub horizontal_segments: usize,
     pub vertical_segments: usize,
@@ -29,7 +29,7 @@ pub struct SurfaceHit {
 }
 
 impl SurfaceHit {
-    pub fn to_pixel(&self, width: u32, height: u32) -> (u32, u32) {
+    pub fn to_pixel(self, width: u32, height: u32) -> (u32, u32) {
         let x = (self.u.clamp(0.0, 1.0) * (width.saturating_sub(1)) as f32).round() as u32;
 
         let y = (self.v.clamp(0.0, 1.0) * (height.saturating_sub(1)) as f32).round() as u32;
@@ -39,18 +39,6 @@ impl SurfaceHit {
 }
 
 impl SurfaceConfig {
-    pub fn main_workspace() -> Self {
-        Self {
-            yaw_center_degrees: 0.0,
-            pitch_center_degrees: 0.0,
-            yaw_span_degrees: 120.0,
-            aspect: 1915.0 / 821.0,
-            radius_offset: 0.03,
-            horizontal_segments: 192,
-            vertical_segments: 48,
-        }
-    }
-
     pub fn build_mesh(&self, dome_radius: f32) -> SurfaceMesh {
         let radius = self.surface_radius(dome_radius);
 
@@ -60,13 +48,6 @@ impl SurfaceConfig {
 
         let yaw_span = self.yaw_span_degrees.to_radians();
 
-        /*
-         * Mantém a proporção visual do painel.
-         *
-         * Exemplo:
-         * 120° de largura em 21:9 resulta em uma altura
-         * angular menor, sem esticar a textura.
-         */
         let pitch_span = self.pitch_span_radians();
 
         let mut vertices =
@@ -123,7 +104,7 @@ impl SurfaceConfig {
     }
 
     pub fn pitch_span_radians(&self) -> f32 {
-        self.yaw_span_degrees.to_radians() / self.aspect
+        self.pitch_span_degrees.to_radians()
     }
 
     pub fn hit_test_ray(&self, dome_radius: f32, ray: Ray) -> Option<SurfaceHit> {

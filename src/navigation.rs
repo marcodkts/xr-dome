@@ -165,12 +165,4 @@ impl Navigation {
             self.position = self.position.normalize() * maximum_distance;
         }
     }
-
-    pub fn set_dome_radius(&mut self, radius: f32) {
-        self.dome_radius = radius.max(self.safety_margin + 0.1);
-
-        // Reposiciona imediatamente caso a redução
-        // do domo deixe a câmera do lado de fora.
-        self.apply_bounds();
-    }
 }

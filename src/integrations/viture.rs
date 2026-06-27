@@ -3,7 +3,6 @@ use std::{
     sync::{Arc, Mutex, OnceLock, Weak},
 };
 
-use glam::{EulerRot, Quat};
 use libloading::Library;
 use winit::event::ElementState;
 use winit::event_loop::EventLoopProxy;
@@ -20,12 +19,13 @@ type DeinitFn = unsafe extern "C" fn();
 type SetImuFn = unsafe extern "C" fn(bool) -> i32;
 
 static EVENT_PROXY: OnceLock<Mutex<Option<EventLoopProxy<AppEvent>>>> = OnceLock::new();
-static ACTIVE_STATE: OnceLock<Mutex<Option<Weak<VitureState>>>> = OnceLock::new();
+static ACTIVE_STATE: OnceLock<Mutex<Option<Weak<Mutex<VitureState>>>>> = OnceLock::new();
+static LOG_IMU: OnceLock<bool> = OnceLock::new();
 
 #[derive(Default)]
 struct VitureState {
-    latest: Mutex<Orientation>,
-    offset: Mutex<Orientation>,
+    latest: Orientation,
+    offset: Orientation,
 }
 
 pub struct VitureSdk {
@@ -37,7 +37,7 @@ pub struct VitureSdk {
 
 pub struct VitureOrientation {
     sdk: VitureSdk,
-    state: Arc<VitureState>,
+    state: Arc<Mutex<VitureState>>,
 }
 
 impl VitureSdk {
@@ -78,8 +78,9 @@ impl VitureSdk {
 impl VitureOrientation {
     pub fn try_new(event_proxy: EventLoopProxy<AppEvent>) -> Result<Self, String> {
         let sdk = VitureSdk::load()?;
-        let state = Arc::new(VitureState::default());
+        let state = Arc::new(Mutex::new(VitureState::default()));
 
+        let _ = LOG_IMU.get_or_init(|| std::env::var_os("VITURE_LOG_IMU").is_some());
         set_event_proxy(Some(event_proxy));
         set_active_state(Some(Arc::downgrade(&state)));
 
@@ -113,41 +114,30 @@ impl VitureOrientation {
     }
 
     pub fn reset(&mut self) {
-        let latest = *self
+        let mut state = self
             .state
-            .latest
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        *self
-            .state
-            .offset
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Orientation {
-            yaw: -latest.yaw,
-            pitch: -latest.pitch,
-            roll: -latest.roll,
+        state.offset = Orientation {
+            yaw: -state.latest.yaw,
+            pitch: -state.latest.pitch,
+            roll: -state.latest.roll,
         };
     }
 
     pub fn clear_input(&mut self) {}
 
     fn corrected_orientation(&self) -> Orientation {
-        let latest = *self
+        let state = self
             .state
-            .latest
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let offset = *self
-            .state
-            .offset
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         normalize_orientation(Orientation {
-            yaw: latest.yaw + offset.yaw,
-            pitch: latest.pitch + offset.pitch,
-            roll: latest.roll + offset.roll,
+            yaw: state.latest.yaw + state.offset.yaw,
+            pitch: state.latest.pitch + state.offset.pitch,
+            roll: state.latest.roll + state.offset.roll,
         })
     }
 }
@@ -185,10 +175,12 @@ extern "C" fn imu_callback(data: *mut u8, len: u16, _ts: u32) {
         return;
     };
 
-    *state
-        .latest
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = latest;
+    {
+        let mut state = state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.latest = latest;
+    }
     if let Some(proxy) = event_proxy() {
         let _ = proxy.send_event(AppEvent::VitureImuUpdated);
     }
@@ -197,46 +189,32 @@ extern "C" fn imu_callback(data: *mut u8, len: u16, _ts: u32) {
 extern "C" fn mcu_callback(_msgid: u16, _data: *mut u8, _len: u16, _ts: u32) {}
 
 fn decode_orientation(bytes: &[u8]) -> Option<Orientation> {
-    if bytes.len() >= 12 {
-        let roll = read_f32_be(bytes, 0)?;
-        let pitch = read_f32_be(bytes, 4)?;
-        let yaw = read_f32_be(bytes, 8)?;
-
-        if std::env::var_os("VITURE_LOG_IMU").is_some() {
-            println!("[viture imu] roll={roll:.3} pitch={pitch:.3} yaw={yaw:.3}");
-        }
-
-        let convert = if looks_like_degrees(roll, pitch, yaw) {
-            std::f32::consts::PI / 180.0
-        } else {
-            1.0
-        };
-
-        return Some(normalize_orientation(Orientation {
-            yaw: yaw * convert,
-            // O eixo vertical da VITURE vem invertido em relação à câmera.
-            pitch: -pitch * convert,
-            // A inclinação lateral da cabeça também precisa ser invertida.
-            roll: -roll * convert,
-        }));
-    }
-
-    if bytes.len() < 36 {
+    if bytes.len() < 12 {
         return None;
     }
 
-    let w = read_f32_be(bytes, 20)?;
-    let x = read_f32_be(bytes, 24)?;
-    let y = read_f32_be(bytes, 28)?;
-    let z = read_f32_be(bytes, 32)?;
+    let roll = read_f32_be(bytes, 0)?;
+    let pitch = read_f32_be(bytes, 4)?;
+    let yaw = read_f32_be(bytes, 8)?;
 
-    let quat = Quat::from_xyzw(x, y, z, w);
-    let (yaw, pitch, roll) = quat.to_euler(EulerRot::YXZ);
+    if log_imu_enabled() {
+        log::debug!("[viture imu] roll={roll:.3} pitch={pitch:.3} yaw={yaw:.3}");
+    }
+
+    let convert = if looks_like_degrees(roll, pitch, yaw) {
+        std::f32::consts::PI / 180.0
+    } else {
+        1.0
+    };
 
     Some(normalize_orientation(Orientation {
-        yaw,
-        pitch: -pitch,
-        roll: -roll,
+        // O sample do SDK entrega roll/pitch/yaw nessa ordem.
+        // Mantemos yaw direto para o giro horizontal.
+        yaw: yaw * convert,
+        // O eixo vertical da VITURE vem invertido em relação à câmera.
+        pitch: -pitch * convert,
+        // O tilt lateral da cabeça continua invertido para ficar natural na câmera.
+        roll: -roll * convert,
     }))
 }
 
@@ -267,6 +245,10 @@ fn looks_like_degrees(roll: f32, pitch: f32, yaw: f32) -> bool {
         .any(|value| value.abs() > std::f32::consts::TAU * 1.5)
 }
 
+fn log_imu_enabled() -> bool {
+    *LOG_IMU.get_or_init(|| std::env::var_os("VITURE_LOG_IMU").is_some())
+}
+
 fn open_library() -> Result<Library, String> {
     let mut candidates = Vec::new();
 
@@ -288,7 +270,7 @@ fn open_library() -> Result<Library, String> {
         // SAFETY: library loading delegates to the OS loader.
         match unsafe { Library::new(&candidate) } {
             Ok(library) => {
-                println!("loaded VITURE SDK: {candidate}");
+                log::info!("loaded VITURE SDK: {candidate}");
                 return Ok(library);
             }
 
@@ -317,12 +299,12 @@ fn event_proxy() -> Option<EventLoopProxy<AppEvent>> {
         .clone()
 }
 
-fn set_active_state(state: Option<Weak<VitureState>>) {
+fn set_active_state(state: Option<Weak<Mutex<VitureState>>>) {
     let slot = ACTIVE_STATE.get_or_init(|| Mutex::new(None));
     *slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = state;
 }
 
-fn active_state() -> Option<Arc<VitureState>> {
+fn active_state() -> Option<Arc<Mutex<VitureState>>> {
     ACTIVE_STATE
         .get_or_init(|| Mutex::new(None))
         .lock()

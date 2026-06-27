@@ -26,13 +26,13 @@ impl HeadOrientation {
     pub fn new(event_proxy: winit::event_loop::EventLoopProxy<AppEvent>) -> Self {
         match VitureOrientation::try_new(event_proxy) {
             Ok(source) => {
-                println!("VITURE head tracking enabled");
+                log::info!("VITURE head tracking enabled");
                 Self::Viture(source)
             }
 
             Err(error) => {
-                eprintln!("VITURE head tracking unavailable: {error}");
-                eprintln!("falling back to keyboard orientation");
+                log::warn!("VITURE head tracking unavailable: {error}");
+                log::warn!("falling back to keyboard orientation");
                 Self::Keyboard(keyboard::KeyboardOrientation::default())
             }
         }

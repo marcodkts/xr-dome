@@ -8,9 +8,13 @@ use winit::{
     window::Window,
 };
 
-use crate::{dome::Vertex, orientation::Orientation, ray::Ray, texture::Texture};
+use crate::{
+    dome::Vertex, dome_config::DomeConfig, orientation::Orientation, ray::Ray, texture::Texture,
+};
 
 const CAMERA_VERTICAL_FOV_DEGREES: f32 = 60.0;
+const CURSOR_VERTEX_CAPACITY: usize = 8;
+const CURSOR_INDEX_CAPACITY: usize = 12;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -59,6 +63,7 @@ impl Renderer {
         dome_indices: &[u32],
         surface_vertices: &[Vertex],
         surface_indices: &[u32],
+        dome_config: &DomeConfig,
         surface_texture_path: Option<&str>,
     ) -> Self {
         let size = window.inner_size();
@@ -139,20 +144,20 @@ impl Renderer {
         let cursor_dummy_vertices = [Vertex {
             position: [0.0, 0.0, 0.0],
             uv: [0.0, 0.0],
-        }];
+        }; CURSOR_VERTEX_CAPACITY];
 
-        let cursor_dummy_indices = [0_u32];
+        let cursor_dummy_indices = [0_u32; CURSOR_INDEX_CAPACITY];
 
         let cursor_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Cursor vertex buffer"),
             contents: bytemuck::cast_slice(&cursor_dummy_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
         let cursor_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Cursor index buffer"),
             contents: bytemuck::cast_slice(&cursor_dummy_indices),
-            usage: wgpu::BufferUsages::INDEX,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         });
 
         let camera_uniform = CameraUniform {
@@ -212,7 +217,14 @@ impl Renderer {
                 ],
             });
 
-        let dome_texture = Texture::generated_background(&device, &queue, 2048, 1024);
+        let dome_texture = Texture::generated_background(
+            &device,
+            &queue,
+            2048,
+            1024,
+            dome_config.yaw_degrees,
+            dome_config.max_pitch_degrees - dome_config.min_pitch_degrees,
+        );
 
         let surface_texture =
             Texture::from_path_or_generated(&device, &queue, surface_texture_path);
@@ -533,67 +545,22 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn update_dome_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) {
-        self.dome_vertex_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Dome vertex buffer"),
-                    contents: bytemuck::cast_slice(vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-        self.dome_index_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Dome index buffer"),
-                    contents: bytemuck::cast_slice(indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-
-        self.dome_index_count = indices.len() as u32;
-    }
-
-    pub fn update_surface_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) {
-        self.surface_vertex_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("surface vertex buffer"),
-                    contents: bytemuck::cast_slice(vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-
-        self.surface_index_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("surface index buffer"),
-                    contents: bytemuck::cast_slice(indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
-
-        self.surface_index_count = indices.len() as u32;
-    }
-
     pub fn update_cursor_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) {
         if vertices.is_empty() || indices.is_empty() {
             self.cursor_index_count = 0;
             return;
         }
 
-        self.cursor_vertex_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Cursor vertex buffer"),
-                    contents: bytemuck::cast_slice(vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
+        debug_assert!(vertices.len() <= CURSOR_VERTEX_CAPACITY);
+        debug_assert!(indices.len() <= CURSOR_INDEX_CAPACITY);
 
-        self.cursor_index_buffer =
-            self.device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Cursor index buffer"),
-                    contents: bytemuck::cast_slice(indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
+        self.queue.write_buffer(
+            &self.cursor_vertex_buffer,
+            0,
+            bytemuck::cast_slice(vertices),
+        );
+        self.queue
+            .write_buffer(&self.cursor_index_buffer, 0, bytemuck::cast_slice(indices));
 
         self.cursor_index_count = indices.len() as u32;
     }

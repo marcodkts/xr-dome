@@ -8,12 +8,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{
-    dome::Vertex,
-    orientation::Orientation,
-    ray::Ray,
-    texture::Texture,
-};
+use crate::{dome::Vertex, orientation::Orientation, ray::Ray, texture::Texture};
 
 const CAMERA_VERTICAL_FOV_DEGREES: f32 = 60.0;
 
@@ -117,34 +112,30 @@ impl Renderer {
 
         surface.configure(&device, &config);
 
-        let dome_vertex_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Dome vertex buffer"),
-                contents: bytemuck::cast_slice(dome_vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let dome_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Dome vertex buffer"),
+            contents: bytemuck::cast_slice(dome_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let dome_index_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Dome index buffer"),
-                contents: bytemuck::cast_slice(dome_indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let dome_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Dome index buffer"),
+            contents: bytemuck::cast_slice(dome_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
-        let surface_vertex_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("surface vertex buffer"),
-                contents: bytemuck::cast_slice(surface_vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let surface_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("surface vertex buffer"),
+            contents: bytemuck::cast_slice(surface_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let surface_index_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("surface index buffer"),
-                contents: bytemuck::cast_slice(surface_indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-        
+        let surface_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("surface index buffer"),
+            contents: bytemuck::cast_slice(surface_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
         let cursor_dummy_vertices = [Vertex {
             position: [0.0, 0.0, 0.0],
             uv: [0.0, 0.0],
@@ -152,31 +143,27 @@ impl Renderer {
 
         let cursor_dummy_indices = [0_u32];
 
-        let cursor_vertex_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Cursor vertex buffer"),
-                contents: bytemuck::cast_slice(&cursor_dummy_vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let cursor_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Cursor vertex buffer"),
+            contents: bytemuck::cast_slice(&cursor_dummy_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        let cursor_index_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Cursor index buffer"),
-                contents: bytemuck::cast_slice(&cursor_dummy_indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-            
+        let cursor_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Cursor index buffer"),
+            contents: bytemuck::cast_slice(&cursor_dummy_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
         let camera_uniform = CameraUniform {
             view_projection: Mat4::IDENTITY.to_cols_array_2d(),
         };
 
-        let camera_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Camera buffer"),
-                contents: bytemuck::bytes_of(&camera_uniform),
-                usage: wgpu::BufferUsages::UNIFORM
-                    | wgpu::BufferUsages::COPY_DST,
-            });
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera buffer"),
+            contents: bytemuck::bytes_of(&camera_uniform),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
 
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -193,15 +180,14 @@ impl Renderer {
                 }],
             });
 
-        let camera_bind_group =
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("Camera bind group"),
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
-                }],
-            });
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Camera bind group"),
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -213,115 +199,94 @@ impl Renderer {
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
                             view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float {
-                                filterable: true,
-                            },
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         },
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(
-                            wgpu::SamplerBindingType::Filtering,
-                        ),
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
                 ],
             });
 
-        let dome_texture =
-            Texture::generated_background(&device, &queue, 2048, 1024);
+        let dome_texture = Texture::generated_background(&device, &queue, 2048, 1024);
 
         let surface_texture =
-            Texture::from_path_or_generated(
-                &device,
-                &queue,
-                surface_texture_path,
-            );
+            Texture::from_path_or_generated(&device, &queue, surface_texture_path);
 
-        let cursor_texture =
-            Texture::solid_rgba(&device, &queue, [230, 250, 255, 255]);
+        let cursor_texture = Texture::solid_rgba(&device, &queue, [230, 250, 255, 255]);
 
-        let dome_texture_bind_group =
-            Self::create_texture_bind_group(
-                &device,
-                &texture_bind_group_layout,
-                &dome_texture,
-                "Dome texture bind group",
-            );
+        let dome_texture_bind_group = Self::create_texture_bind_group(
+            &device,
+            &texture_bind_group_layout,
+            &dome_texture,
+            "Dome texture bind group",
+        );
 
-        let surface_texture_bind_group =
-            Self::create_texture_bind_group(
-                &device,
-                &texture_bind_group_layout,
-                &surface_texture,
-                "surface texture bind group",
-            );
+        let surface_texture_bind_group = Self::create_texture_bind_group(
+            &device,
+            &texture_bind_group_layout,
+            &surface_texture,
+            "surface texture bind group",
+        );
 
-        let cursor_texture_bind_group =
-            Self::create_texture_bind_group(
-                &device,
-                &texture_bind_group_layout,
-                &cursor_texture,
-                "Cursor texture bind group",
-            );
+        let cursor_texture_bind_group = Self::create_texture_bind_group(
+            &device,
+            &texture_bind_group_layout,
+            &cursor_texture,
+            "Cursor texture bind group",
+        );
 
-        let shader =
-            device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("XR Dome shader"),
-                source: wgpu::ShaderSource::Wgsl(
-                    include_str!("shader.wgsl").into(),
-                ),
-            });
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("XR Dome shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        });
 
-        let pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("XR Dome pipeline layout"),
-                bind_group_layouts: &[
-                    &camera_bind_group_layout,
-                    &texture_bind_group_layout,
-                ],
-                push_constant_ranges: &[],
-            });
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("XR Dome pipeline layout"),
+            bind_group_layouts: &[&camera_bind_group_layout, &texture_bind_group_layout],
+            push_constant_ranges: &[],
+        });
 
-        let pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("XR Dome pipeline"),
-                layout: Some(&pipeline_layout),
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("XR Dome pipeline"),
+            layout: Some(&pipeline_layout),
 
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: "vertex_main",
-                    buffers: &[Vertex::descriptor()],
-                },
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vertex_main",
+                buffers: &[Vertex::descriptor()],
+            },
 
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: "fragment_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fragment_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
 
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None,
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    unclipped_depth: false,
-                    conservative: false,
-                },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
 
-                depth_stencil: None,
+            depth_stencil: None,
 
-                multisample: wgpu::MultisampleState::default(),
+            multisample: wgpu::MultisampleState::default(),
 
-                multiview: None,
-            });
+            multiview: None,
+        });
 
         Self {
             surface,
@@ -369,15 +334,11 @@ impl Renderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(
-                        &texture.view,
-                    ),
+                    resource: wgpu::BindingResource::TextureView(&texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(
-                        &texture.sampler,
-                    ),
+                    resource: wgpu::BindingResource::Sampler(&texture.sampler),
                 },
             ],
         })
@@ -424,21 +385,15 @@ impl Renderer {
 
         let aspect = width / height;
 
-        let tan_half_fov =
-            (CAMERA_VERTICAL_FOV_DEGREES.to_radians() * 0.5)
-                .tan();
+        let tan_half_fov = (CAMERA_VERTICAL_FOV_DEGREES.to_radians() * 0.5).tan();
 
         /*
-        * Direção em espaço de câmera.
-        * A câmera olha para -Z.
-        */
+         * Direção em espaço de câmera.
+         * A câmera olha para -Z.
+         */
 
-        let camera_direction = Vec3::new(
-            ndc_x * aspect * tan_half_fov,
-            ndc_y * tan_half_fov,
-            -1.0,
-        )
-        .normalize();
+        let camera_direction =
+            Vec3::new(ndc_x * aspect * tan_half_fov, ndc_y * tan_half_fov, -1.0).normalize();
 
         let camera_rotation = Quat::from_euler(
             EulerRot::YXZ,
@@ -447,13 +402,9 @@ impl Renderer {
             orientation.roll,
         );
 
-        let world_direction =
-            camera_rotation * camera_direction;
+        let world_direction = camera_rotation * camera_direction;
 
-        Some(Ray::new(
-            camera_position,
-            world_direction,
-        ))
+        Some(Ray::new(camera_position, world_direction))
     }
 
     pub fn screen_center_ray(
@@ -466,55 +417,33 @@ impl Renderer {
             self.config.height as f64 * 0.5,
         );
 
-        self.screen_ray(
-            center,
-            orientation,
-            camera_position,
-        )
+        self.screen_ray(center, orientation, camera_position)
     }
 
-    fn update_camera(
-    &self,
-    orientation: Orientation,
-    position: Vec3,
-) {
-    let aspect =
-        self.config.width as f32
-            / self.config.height as f32;
+    fn update_camera(&self, orientation: Orientation, position: Vec3) {
+        let aspect = self.config.width as f32 / self.config.height as f32;
 
-    let projection = Mat4::perspective_rh(
-        CAMERA_VERTICAL_FOV_DEGREES.to_radians(),
-        aspect,
-        0.1,
-        100.0,
-    );
+        let projection =
+            Mat4::perspective_rh(CAMERA_VERTICAL_FOV_DEGREES.to_radians(), aspect, 0.1, 100.0);
 
-    let camera_rotation = Quat::from_euler(
-        EulerRot::YXZ,
-        orientation.yaw,
-        orientation.pitch,
-        orientation.roll,
-    );
-
-    let camera_transform =
-        Mat4::from_rotation_translation(
-            camera_rotation,
-            position,
+        let camera_rotation = Quat::from_euler(
+            EulerRot::YXZ,
+            orientation.yaw,
+            orientation.pitch,
+            orientation.roll,
         );
 
-    let view = camera_transform.inverse();
+        let camera_transform = Mat4::from_rotation_translation(camera_rotation, position);
 
-    let camera_uniform = CameraUniform {
-        view_projection:
-            (projection * view).to_cols_array_2d(),
-    };
+        let view = camera_transform.inverse();
 
-    self.queue.write_buffer(
-        &self.camera_buffer,
-        0,
-        bytemuck::bytes_of(&camera_uniform),
-    );
-}
+        let camera_uniform = CameraUniform {
+            view_projection: (projection * view).to_cols_array_2d(),
+        };
+
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::bytes_of(&camera_uniform));
+    }
 
     pub fn render(
         &mut self,
@@ -529,117 +458,72 @@ impl Renderer {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder =
-            self.device.create_command_encoder(
-                &wgpu::CommandEncoderDescriptor {
-                    label: Some("Render encoder"),
-                },
-            );
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render encoder"),
+            });
 
         {
-            let mut render_pass =
-                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("XR Dome render pass"),
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("XR Dome render pass"),
 
-                    color_attachments: &[Some(
-                        wgpu::RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(
-                                    wgpu::Color {
-                                        r: 0.005,
-                                        g: 0.008,
-                                        b: 0.02,
-                                        a: 1.0,
-                                    },
-                                ),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        },
-                    )],
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.005,
+                            g: 0.008,
+                            b: 0.02,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
 
-                    depth_stencil_attachment: None,
-                    occlusion_query_set: None,
-                    timestamp_writes: None,
-                });
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
 
             render_pass.set_pipeline(&self.pipeline);
 
-            render_pass.set_bind_group(
-                0,
-                &self.camera_bind_group,
-                &[],
-            );
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
             // 1. Desenha o domo/fundo
-            render_pass.set_bind_group(
-                1,
-                &self.dome_texture_bind_group,
-                &[],
-            );
+            render_pass.set_bind_group(1, &self.dome_texture_bind_group, &[]);
 
-            render_pass.set_vertex_buffer(
-                0,
-                self.dome_vertex_buffer.slice(..),
-            );
+            render_pass.set_vertex_buffer(0, self.dome_vertex_buffer.slice(..));
 
-            render_pass.set_index_buffer(
-                self.dome_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint32,
-            );
+            render_pass
+                .set_index_buffer(self.dome_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 
-            render_pass.draw_indexed(
-                0..self.dome_index_count,
-                0,
-                0..1,
-            );
+            render_pass.draw_indexed(0..self.dome_index_count, 0, 0..1);
 
             // 2. Desenha o painel central por cima do domo
-            render_pass.set_bind_group(
-                1,
-                &self.surface_texture_bind_group,
-                &[],
-            );
+            render_pass.set_bind_group(1, &self.surface_texture_bind_group, &[]);
 
-            render_pass.set_vertex_buffer(
-                0,
-                self.surface_vertex_buffer.slice(..),
-            );
+            render_pass.set_vertex_buffer(0, self.surface_vertex_buffer.slice(..));
 
             render_pass.set_index_buffer(
                 self.surface_index_buffer.slice(..),
                 wgpu::IndexFormat::Uint32,
             );
 
-            render_pass.draw_indexed(
-                0..self.surface_index_count,
-                0,
-                0..1,
-            );
+            render_pass.draw_indexed(0..self.surface_index_count, 0, 0..1);
 
             if self.cursor_index_count > 0 {
-                render_pass.set_bind_group(
-                    1,
-                    &self.cursor_texture_bind_group,
-                    &[],
-                );
+                render_pass.set_bind_group(1, &self.cursor_texture_bind_group, &[]);
 
-                render_pass.set_vertex_buffer(
-                    0,
-                    self.cursor_vertex_buffer.slice(..),
-                );
+                render_pass.set_vertex_buffer(0, self.cursor_vertex_buffer.slice(..));
 
                 render_pass.set_index_buffer(
                     self.cursor_index_buffer.slice(..),
                     wgpu::IndexFormat::Uint32,
                 );
 
-                render_pass.draw_indexed(
-                    0..self.cursor_index_count,
-                    0,
-                    0..1,
-                );
+                render_pass.draw_indexed(0..self.cursor_index_count, 0, 0..1);
             }
         }
 
@@ -649,85 +533,67 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn update_dome_mesh(
-        &mut self,
-        vertices: &[Vertex],
-        indices: &[u32],
-    ) {
+    pub fn update_dome_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) {
         self.dome_vertex_buffer =
-            self.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Dome vertex buffer"),
                     contents: bytemuck::cast_slice(vertices),
                     usage: wgpu::BufferUsages::VERTEX,
-                },
-            );
+                });
 
         self.dome_index_buffer =
-            self.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Dome index buffer"),
                     contents: bytemuck::cast_slice(indices),
                     usage: wgpu::BufferUsages::INDEX,
-                },
-            );
+                });
 
         self.dome_index_count = indices.len() as u32;
     }
 
-    pub fn update_surface_mesh(
-        &mut self,
-        vertices: &[Vertex],
-        indices: &[u32],
-    ) {
+    pub fn update_surface_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) {
         self.surface_vertex_buffer =
-            self.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("surface vertex buffer"),
                     contents: bytemuck::cast_slice(vertices),
                     usage: wgpu::BufferUsages::VERTEX,
-                },
-            );
+                });
 
         self.surface_index_buffer =
-            self.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("surface index buffer"),
                     contents: bytemuck::cast_slice(indices),
                     usage: wgpu::BufferUsages::INDEX,
-                },
-            );
+                });
 
         self.surface_index_count = indices.len() as u32;
     }
 
-    pub fn update_cursor_mesh(
-        &mut self,
-        vertices: &[Vertex],
-        indices: &[u32],
-    ) {
+    pub fn update_cursor_mesh(&mut self, vertices: &[Vertex], indices: &[u32]) {
         if vertices.is_empty() || indices.is_empty() {
             self.cursor_index_count = 0;
             return;
         }
 
         self.cursor_vertex_buffer =
-            self.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Cursor vertex buffer"),
                     contents: bytemuck::cast_slice(vertices),
                     usage: wgpu::BufferUsages::VERTEX,
-                },
-            );
+                });
 
         self.cursor_index_buffer =
-            self.device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Cursor index buffer"),
                     contents: bytemuck::cast_slice(indices),
                     usage: wgpu::BufferUsages::INDEX,
-                },
-            );
+                });
 
         self.cursor_index_count = indices.len() as u32;
     }

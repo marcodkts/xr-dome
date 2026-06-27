@@ -11,11 +11,10 @@ impl Vertex {
     pub fn descriptor() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
 
-        const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-            wgpu::vertex_attr_array![
-                0 => Float32x3,
-                1 => Float32x2
-            ];
+        const ATTRIBUTES: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![
+            0 => Float32x3,
+            1 => Float32x2
+        ];
 
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
@@ -33,11 +32,9 @@ pub fn generate_dome(
     min_pitch_degrees: f32,
     max_pitch_degrees: f32,
 ) -> (Vec<Vertex>, Vec<u32>) {
-    let mut vertices =
-        Vec::with_capacity((horizontal_segments + 1) * (vertical_segments + 1));
+    let mut vertices = Vec::with_capacity((horizontal_segments + 1) * (vertical_segments + 1));
 
-    let mut indices =
-        Vec::with_capacity(horizontal_segments * vertical_segments * 6);
+    let mut indices = Vec::with_capacity(horizontal_segments * vertical_segments * 6);
 
     let yaw_arc = yaw_degrees.to_radians();
     let min_pitch = min_pitch_degrees.to_radians();
@@ -74,10 +71,7 @@ pub fn generate_dome(
             let c = ((y + 1) * row + x) as u32;
             let d = ((y + 1) * row + x + 1) as u32;
 
-            indices.extend_from_slice(&[
-                a, c, b,
-                b, c, d,
-            ]);
+            indices.extend_from_slice(&[a, c, b, b, c, d]);
         }
     }
 

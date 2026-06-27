@@ -14,10 +14,7 @@ impl Ray {
             Vec3::NEG_Z
         };
 
-        Self {
-            origin,
-            direction,
-        }
+        Self { origin, direction }
     }
 
     pub fn at(&self, distance: f32) -> Vec3 {

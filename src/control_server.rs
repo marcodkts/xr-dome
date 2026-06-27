@@ -1,17 +1,8 @@
 use std::thread;
 
-use tiny_http::{
-    Header,
-    Method,
-    Response,
-    Server,
-    StatusCode,
-};
+use tiny_http::{Header, Method, Response, Server, StatusCode};
 
-use crate::dome_config::{
-    DomeConfig,
-    SharedDomeConfig,
-};
+use crate::dome_config::{DomeConfig, SharedDomeConfig};
 
 const INDEX_HTML: &str = r#"
 <!doctype html>
@@ -313,10 +304,8 @@ pub fn spawn_control_server(shared_config: SharedDomeConfig) {
                     }
 
                     _ => {
-                        let _ = request.respond(text_response(
-                            StatusCode(404),
-                            "not found".to_string(),
-                        ));
+                        let _ = request
+                            .respond(text_response(StatusCode(404), "not found".to_string()));
                     }
                 }
             }
@@ -328,18 +317,11 @@ fn html_response(body: &str) -> Response<std::io::Cursor<Vec<u8>>> {
     Response::from_string(body)
         .with_status_code(StatusCode(200))
         .with_header(
-            Header::from_bytes(
-                &b"Content-Type"[..],
-                &b"text/html; charset=utf-8"[..],
-            )
-            .unwrap(),
+            Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]).unwrap(),
         )
 }
 
-fn json_response(
-    status: StatusCode,
-    body: String,
-) -> Response<std::io::Cursor<Vec<u8>>> {
+fn json_response(status: StatusCode, body: String) -> Response<std::io::Cursor<Vec<u8>>> {
     Response::from_string(body)
         .with_status_code(status)
         .with_header(
@@ -351,17 +333,10 @@ fn json_response(
         )
 }
 
-fn text_response(
-    status: StatusCode,
-    body: String,
-) -> Response<std::io::Cursor<Vec<u8>>> {
+fn text_response(status: StatusCode, body: String) -> Response<std::io::Cursor<Vec<u8>>> {
     Response::from_string(body)
         .with_status_code(status)
         .with_header(
-            Header::from_bytes(
-                &b"Content-Type"[..],
-                &b"text/plain; charset=utf-8"[..],
-            )
-            .unwrap(),
+            Header::from_bytes(&b"Content-Type"[..], &b"text/plain; charset=utf-8"[..]).unwrap(),
         )
 }

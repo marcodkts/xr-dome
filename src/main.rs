@@ -1,29 +1,26 @@
+mod app_event;
 mod control_server;
 mod dome;
 mod dome_config;
+mod integrations;
 mod navigation;
 mod orientation;
-mod surface;
-mod renderer;
-mod texture;
 mod ray;
+mod renderer;
+mod surface;
+mod texture;
 
-use std::{
-    sync::Arc,
-    time::Instant,
-};
-use surface::{SurfaceConfig, SurfaceHit};
+use app_event::AppEvent;
 use dome_config::{DomeConfig, SharedDomeConfig};
 use glam::Vec3;
 use navigation::Navigation;
-use orientation::{
-    keyboard::KeyboardOrientation,
-    OrientationSource,
-};
+use orientation::{HeadOrientation, OrientationSource};
 use renderer::Renderer;
+use std::{sync::Arc, time::Instant};
+use surface::{SurfaceConfig, SurfaceHit};
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoopBuilder},
     keyboard::{Key, NamedKey, PhysicalKey},
     window::{Fullscreen, WindowBuilder},
 };
@@ -31,70 +28,58 @@ use winit::{
 fn main() {
     env_logger::init();
 
-    let event_loop = EventLoop::new()
+    let event_loop = EventLoopBuilder::<AppEvent>::with_user_event()
+        .build()
         .expect("Não foi possível criar o event loop");
+    let event_proxy = event_loop.create_proxy();
 
     let window = Arc::new(
         WindowBuilder::new()
             .with_title("XR Dome")
-            .with_inner_size(
-                winit::dpi::LogicalSize::new(1280, 720),
-            )
+            .with_inner_size(winit::dpi::LogicalSize::new(1280, 720))
             .build(&event_loop)
             .expect("Não foi possível criar a janela"),
     );
 
-    window.set_fullscreen(Some(
-        Fullscreen::Borderless(None),
-    ));
+    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
 
-    let shared_dome_config =
-        SharedDomeConfig::new(DomeConfig::default());
+    let shared_dome_config = SharedDomeConfig::new(DomeConfig::default());
 
-    control_server::spawn_control_server(
-        shared_dome_config.clone(),
-    );
+    control_server::spawn_control_server(shared_dome_config.clone());
 
     let initial_config = shared_dome_config.get();
 
-    let (vertices, indices) =
-        initial_config.build_mesh();
+    let (vertices, indices) = initial_config.build_mesh();
 
     /*
-    * Surface principal do workspace.
-    */
+     * Surface principal do workspace.
+     */
 
     let main_surface = SurfaceConfig::main_workspace();
 
-    let surface_mesh =
-        main_surface.build_mesh(initial_config.radius);
+    let surface_mesh = main_surface.build_mesh(initial_config.radius);
 
-    let mut renderer =
-        pollster::block_on(Renderer::new(
-            Arc::clone(&window),
-            &vertices,
-            &indices,
-            &surface_mesh.vertices,
-            &surface_mesh.indices,
-            Some("assets/image2.png"),
-        ));
+    let mut renderer = pollster::block_on(Renderer::new(
+        Arc::clone(&window),
+        &vertices,
+        &indices,
+        &surface_mesh.vertices,
+        &surface_mesh.indices,
+        Some("assets/image2.png"),
+    ));
 
-    let mut head_orientation = KeyboardOrientation::default();
+    let mut head_orientation = HeadOrientation::new(event_proxy);
 
     /*
      * O observador começa deslocado do centro,
      * mais próximo do painel frontal.
      */
 
-    let mut navigation = Navigation::new(
-        Vec3::new(0.0, 0.0, -2.0),
-        initial_config.radius,
-    );
+    let mut navigation = Navigation::new(Vec3::new(0.0, 0.0, -2.0), initial_config.radius);
 
     let mut current_dome_radius = initial_config.radius;
 
-    let mut cursor_position:
-        Option<winit::dpi::PhysicalPosition<f64>> = None;
+    let mut cursor_position: Option<winit::dpi::PhysicalPosition<f64>> = None;
 
     let mut last_hit_cell: Option<(i32, i32)> = None;
 
@@ -444,6 +429,10 @@ fn main() {
 
                         _ => {}
                     }
+                }
+
+                Event::UserEvent(AppEvent::VitureImuUpdated) => {
+                    window.request_redraw();
                 }
 
                 Event::AboutToWait => {

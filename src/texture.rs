@@ -35,8 +35,7 @@ impl Texture {
         width: u32,
         height: u32,
     ) -> Self {
-        let mut rgba =
-            vec![0_u8; (width * height * 4) as usize];
+        let mut rgba = vec![0_u8; (width * height * 4) as usize];
 
         for y in 0..height {
             let v = y as f32 / (height - 1) as f32;
@@ -47,55 +46,46 @@ impl Texture {
                 let v_center = v - 0.5;
 
                 /*
-                * Base quase totalmente preta.
-                * Pequeníssima variação só para não ficar "chapado".
-                */
-                let horizon_fade =
-                    1.0 - (v_center.abs() * 2.0).clamp(0.0, 1.0);
+                 * Base quase totalmente preta.
+                 * Pequeníssima variação só para não ficar "chapado".
+                 */
+                let horizon_fade = 1.0 - (v_center.abs() * 2.0).clamp(0.0, 1.0);
 
                 let mut r = 1.5 + 2.0 * horizon_fade;
                 let mut g = 1.5 + 2.5 * horizon_fade;
                 let mut b = 2.0 + 4.0 * horizon_fade;
 
                 /*
-                * Grade fina e discreta.
-                * Menos linhas e menos intensidade.
-                */
-                let minor_vertical =
-                    repeated_line(u, 48.0, 0.0045);
+                 * Grade fina e discreta.
+                 * Menos linhas e menos intensidade.
+                 */
+                let minor_vertical = repeated_line(u, 48.0, 0.0045);
 
-                let major_vertical =
-                    repeated_line(u, 12.0, 0.0075);
+                let major_vertical = repeated_line(u, 12.0, 0.0075);
 
-                let minor_horizontal =
-                    repeated_line(v, 24.0, 0.0045);
+                let minor_horizontal = repeated_line(v, 24.0, 0.0045);
 
-                let major_horizontal =
-                    repeated_line(v, 6.0, 0.0075);
+                let major_horizontal = repeated_line(v, 6.0, 0.0075);
 
-                let minor_grid =
-                    minor_vertical.max(minor_horizontal);
+                let minor_grid = minor_vertical.max(minor_horizontal);
 
-                let major_grid =
-                    major_vertical.max(major_horizontal);
+                let major_grid = major_vertical.max(major_horizontal);
 
                 /*
-                * Horizonte sutil para orientação.
-                */
-                let horizon =
-                    line_at(v, 0.5, 0.0035);
+                 * Horizonte sutil para orientação.
+                 */
+                let horizon = line_at(v, 0.5, 0.0035);
 
                 /*
-                * Eixo frontal bem discreto.
-                */
-                let front_axis =
-                    wrapped_line_at(u, 0.5, 0.0025);
+                 * Eixo frontal bem discreto.
+                 */
+                let front_axis = wrapped_line_at(u, 0.5, 0.0025);
 
                 /*
-                * Mistura extremamente contida.
-                * A ideia é parecer uma malha técnica fina,
-                * não uma interface brilhante.
-                */
+                 * Mistura extremamente contida.
+                 * A ideia é parecer uma malha técnica fina,
+                 * não uma interface brilhante.
+                 */
                 r = mix(r, 12.0, minor_grid * 0.14);
                 g = mix(g, 18.0, minor_grid * 0.16);
                 b = mix(b, 26.0, minor_grid * 0.18);
@@ -156,8 +146,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
 
@@ -177,22 +166,18 @@ impl Texture {
             size,
         );
 
-        let view = texture.create_view(
-            &wgpu::TextureViewDescriptor::default(),
-        );
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let sampler = device.create_sampler(
-            &wgpu::SamplerDescriptor {
-                label: Some("Texture sampler"),
-                address_mode_u: wgpu::AddressMode::ClampToEdge,
-                address_mode_v: wgpu::AddressMode::ClampToEdge,
-                address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Linear,
-                mipmap_filter: wgpu::FilterMode::Nearest,
-                ..Default::default()
-            },
-        );
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Texture sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
 
         Self {
             _texture: texture,
@@ -201,11 +186,7 @@ impl Texture {
         }
     }
 
-    pub fn solid_rgba(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        rgba: [u8; 4],
-    ) -> Self {
+    pub fn solid_rgba(device: &wgpu::Device, queue: &wgpu::Queue, rgba: [u8; 4]) -> Self {
         Self::from_rgba(device, queue, 1, 1, &rgba)
     }
 }

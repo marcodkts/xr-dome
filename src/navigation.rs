@@ -1,8 +1,5 @@
-use glam::{Vec3};
-use winit::{
-    event::ElementState,
-    keyboard::KeyCode,
-};
+use glam::Vec3;
+use winit::{event::ElementState, keyboard::KeyCode};
 
 use crate::orientation::Orientation;
 
@@ -65,19 +62,10 @@ impl Navigation {
     }
 
     pub fn is_moving(&self) -> bool {
-        self.forward
-            || self.backward
-            || self.left
-            || self.right
-            || self.up
-            || self.down
+        self.forward || self.backward || self.left || self.right || self.up || self.down
     }
 
-    pub fn handle_key(
-        &mut self,
-        key: KeyCode,
-        state: ElementState,
-    ) -> bool {
+    pub fn handle_key(&mut self, key: KeyCode, state: ElementState) -> bool {
         let pressed = state == ElementState::Pressed;
 
         match key {
@@ -105,8 +93,7 @@ impl Navigation {
                 self.down = pressed;
             }
 
-            KeyCode::ShiftLeft
-            | KeyCode::ShiftRight => {
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => {
                 self.sprint = pressed;
             }
 
@@ -116,30 +103,17 @@ impl Navigation {
         true
     }
 
-    pub fn update(
-        &mut self,
-        delta_seconds: f32,
-        orientation: Orientation,
-    ) {
-        let (sin_yaw, cos_yaw) =
-            orientation.yaw.sin_cos();
+    pub fn update(&mut self, delta_seconds: f32, orientation: Orientation) {
+        let (sin_yaw, cos_yaw) = orientation.yaw.sin_cos();
 
         /*
          * Movimento acompanha somente o yaw.
          * Olhar para cima não faz o observador voar.
          */
 
-        let forward = Vec3::new(
-            -sin_yaw,
-            0.0,
-            -cos_yaw,
-        );
+        let forward = Vec3::new(-sin_yaw, 0.0, -cos_yaw);
 
-        let right = Vec3::new(
-            cos_yaw,
-            0.0,
-            -sin_yaw,
-        );
+        let right = Vec3::new(cos_yaw, 0.0, -sin_yaw);
 
         let mut direction = Vec3::ZERO;
 
@@ -176,28 +150,24 @@ impl Navigation {
                 self.speed
             };
 
-            self.position +=
-                direction * speed * delta_seconds;
+            self.position += direction * speed * delta_seconds;
         }
 
         self.apply_bounds();
     }
 
     fn apply_bounds(&mut self) {
-        let maximum_distance =
-            (self.dome_radius - self.safety_margin).max(0.1);
+        let maximum_distance = (self.dome_radius - self.safety_margin).max(0.1);
 
         let distance = self.position.length();
 
         if distance > maximum_distance {
-            self.position =
-                self.position.normalize() * maximum_distance;
+            self.position = self.position.normalize() * maximum_distance;
         }
     }
 
     pub fn set_dome_radius(&mut self, radius: f32) {
-        self.dome_radius =
-            radius.max(self.safety_margin + 0.1);
+        self.dome_radius = radius.max(self.safety_margin + 0.1);
 
         // Reposiciona imediatamente caso a redução
         // do domo deixe a câmera do lado de fora.

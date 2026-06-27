@@ -16,4 +16,3 @@ winit = "0.29.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tiny_http = "0.12"
-image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }

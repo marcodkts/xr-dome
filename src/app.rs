@@ -39,7 +39,7 @@ impl App {
             &surface_mesh.vertices,
             &surface_mesh.indices,
             &dome_config,
-            Some("assets/image2.png"),
+            &scene.visual,
         ));
 
         let controls = DesktopControls::new(event_proxy, dome_config.radius);

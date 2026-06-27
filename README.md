@@ -27,6 +27,8 @@ XR_DOME_DOME_MIN_PITCH_DEGREES=-30
 XR_DOME_DOME_MAX_PITCH_DEGREES=30
 XR_DOME_WORKSPACE_YAW_DEGREES=140
 XR_DOME_WORKSPACE_PITCH_DEGREES=60
+XR_DOME_WORKSPACE_TITLE=XR Desktop
+XR_DOME_WORKSPACE_SUBTITLE=Workspace 3DoF em arco frontal
 ```
 
 ## Permissões da VITURE
@@ -47,3 +49,4 @@ Depois, desconecte e reconecte o óculos, ou faça logout/login.
 ## Observação
 
 O `viture_sdk/` está vendorizado no repositório e o diretório `sample/` do pacote original não faz parte do projeto.
+A superfície central agora é gerada proceduralmente como workstation, sem depender de uma imagem mock.

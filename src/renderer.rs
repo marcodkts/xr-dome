@@ -9,7 +9,8 @@ use winit::{
 };
 
 use crate::{
-    dome::Vertex, dome_config::DomeConfig, orientation::Orientation, ray::Ray, texture::Texture,
+    dome::Vertex, dome_config::DomeConfig, orientation::Orientation, ray::Ray,
+    settings::WorkstationVisualConfig, texture::Texture,
 };
 
 const CAMERA_VERTICAL_FOV_DEGREES: f32 = 60.0;
@@ -64,7 +65,7 @@ impl Renderer {
         surface_vertices: &[Vertex],
         surface_indices: &[u32],
         dome_config: &DomeConfig,
-        surface_texture_path: Option<&str>,
+        workstation: &WorkstationVisualConfig,
     ) -> Self {
         let size = window.inner_size();
 
@@ -227,7 +228,7 @@ impl Renderer {
         );
 
         let surface_texture =
-            Texture::from_path_or_generated(&device, &queue, surface_texture_path);
+            Texture::generated_workstation(&device, &queue, 2048, 1024, workstation);
 
         let cursor_texture = Texture::solid_rgba(&device, &queue, [230, 250, 255, 255]);
 

@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex, OnceLock, Weak},
 };
 
+use glam::{EulerRot, Quat};
 use libloading::Library;
 use winit::event::ElementState;
 use winit::event_loop::EventLoopProxy;
@@ -21,11 +22,36 @@ type SetImuFn = unsafe extern "C" fn(bool) -> i32;
 static EVENT_PROXY: OnceLock<Mutex<Option<EventLoopProxy<AppEvent>>>> = OnceLock::new();
 static ACTIVE_STATE: OnceLock<Mutex<Option<Weak<Mutex<VitureState>>>>> = OnceLock::new();
 static LOG_IMU: OnceLock<bool> = OnceLock::new();
+static TRACE_TRACKING: OnceLock<bool> = OnceLock::new();
+static TRACKING_CONFIG: OnceLock<VitureTrackingConfig> = OnceLock::new();
+
+#[derive(Clone, Copy)]
+enum OrientationInputFormat {
+    Raw12,
+    Quaternion36,
+    Auto,
+}
+
+#[derive(Clone, Copy)]
+struct VitureCalibration {
+    yaw_offset: f32,
+    pitch_offset: f32,
+    roll_offset: f32,
+}
+
+#[derive(Clone, Copy)]
+struct VitureTrackingConfig {
+    calibration: VitureCalibration,
+    input_format: OrientationInputFormat,
+    auto_center_on_start: bool,
+}
 
 #[derive(Default)]
 struct VitureState {
     latest: Orientation,
     offset: Orientation,
+    sample_seen: bool,
+    centered: bool,
 }
 
 pub struct VitureSdk {
@@ -38,6 +64,7 @@ pub struct VitureSdk {
 pub struct VitureOrientation {
     sdk: VitureSdk,
     state: Arc<Mutex<VitureState>>,
+    config: VitureTrackingConfig,
 }
 
 impl VitureSdk {
@@ -79,8 +106,10 @@ impl VitureOrientation {
     pub fn try_new(event_proxy: EventLoopProxy<AppEvent>) -> Result<Self, String> {
         let sdk = VitureSdk::load()?;
         let state = Arc::new(Mutex::new(VitureState::default()));
+        let config = tracking_config();
 
         let _ = LOG_IMU.get_or_init(|| std::env::var_os("VITURE_LOG_IMU").is_some());
+        let _ = TRACE_TRACKING.get_or_init(|| std::env::var_os("VITURE_TRACE_TRACKING").is_some());
         set_event_proxy(Some(event_proxy));
         set_active_state(Some(Arc::downgrade(&state)));
 
@@ -106,7 +135,11 @@ impl VitureOrientation {
             return Err(format!("set_imu(true) failed with code {result}"));
         }
 
-        Ok(Self { sdk, state })
+        Ok(Self {
+            sdk,
+            state,
+            config: *config,
+        })
     }
 
     pub fn handle_key(&mut self, _key: KeyCode, _state: ElementState) -> bool {
@@ -119,26 +152,42 @@ impl VitureOrientation {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        state.offset = Orientation {
-            yaw: -state.latest.yaw,
-            pitch: -state.latest.pitch,
-            roll: -state.latest.roll,
-        };
+        state.offset = center_offset(state.latest, self.config.calibration);
+        state.centered = true;
     }
 
     pub fn clear_input(&mut self) {}
 
     fn corrected_orientation(&self) -> Orientation {
-        let state = self
+        let mut state = self
             .state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        normalize_orientation(Orientation {
-            yaw: state.latest.yaw + state.offset.yaw,
-            pitch: state.latest.pitch + state.offset.pitch,
-            roll: state.latest.roll + state.offset.roll,
-        })
+        if self.config.auto_center_on_start && state.sample_seen && !state.centered {
+            state.offset = center_offset(state.latest, self.config.calibration);
+            state.centered = true;
+        }
+
+        let orientation =
+            corrected_orientation(state.latest, self.config.calibration, state.offset);
+
+        if trace_tracking_enabled() {
+            log::debug!(
+                "[viture trace] latest=({:.2}, {:.2}, {:.2}) offset=({:.2}, {:.2}, {:.2}) output=({:.2}, {:.2}, {:.2})",
+                state.latest.yaw.to_degrees(),
+                state.latest.pitch.to_degrees(),
+                state.latest.roll.to_degrees(),
+                state.offset.yaw.to_degrees(),
+                state.offset.pitch.to_degrees(),
+                state.offset.roll.to_degrees(),
+                orientation.yaw.to_degrees(),
+                orientation.pitch.to_degrees(),
+                orientation.roll.to_degrees(),
+            );
+        }
+
+        orientation
     }
 }
 
@@ -180,6 +229,7 @@ extern "C" fn imu_callback(data: *mut u8, len: u16, _ts: u32) {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         state.latest = latest;
+        state.sample_seen = true;
     }
     if let Some(proxy) = event_proxy() {
         let _ = proxy.send_event(AppEvent::VitureImuUpdated);
@@ -189,6 +239,16 @@ extern "C" fn imu_callback(data: *mut u8, len: u16, _ts: u32) {
 extern "C" fn mcu_callback(_msgid: u16, _data: *mut u8, _len: u16, _ts: u32) {}
 
 fn decode_orientation(bytes: &[u8]) -> Option<Orientation> {
+    match tracking_config().input_format {
+        OrientationInputFormat::Raw12 => decode_raw_orientation(bytes),
+        OrientationInputFormat::Quaternion36 => decode_quaternion_orientation(bytes),
+        OrientationInputFormat::Auto => {
+            decode_raw_orientation(bytes).or_else(|| decode_quaternion_orientation(bytes))
+        }
+    }
+}
+
+fn decode_raw_orientation(bytes: &[u8]) -> Option<Orientation> {
     if bytes.len() < 12 {
         return None;
     }
@@ -198,7 +258,7 @@ fn decode_orientation(bytes: &[u8]) -> Option<Orientation> {
     let yaw = read_f32_be(bytes, 8)?;
 
     if log_imu_enabled() {
-        log::debug!("[viture imu] roll={roll:.3} pitch={pitch:.3} yaw={yaw:.3}");
+        log::debug!("[viture imu raw] roll={roll:.3} pitch={pitch:.3} yaw={yaw:.3}");
     }
 
     let convert = if looks_like_degrees(roll, pitch, yaw) {
@@ -208,13 +268,33 @@ fn decode_orientation(bytes: &[u8]) -> Option<Orientation> {
     };
 
     Some(normalize_orientation(Orientation {
-        // O sample do SDK entrega roll/pitch/yaw nessa ordem.
-        // Mantemos yaw direto para o giro horizontal.
         yaw: yaw * convert,
-        // O eixo vertical da VITURE vem invertido em relação à câmera.
         pitch: -pitch * convert,
-        // O tilt lateral da cabeça continua invertido para ficar natural na câmera.
         roll: -roll * convert,
+    }))
+}
+
+fn decode_quaternion_orientation(bytes: &[u8]) -> Option<Orientation> {
+    if bytes.len() < 36 {
+        return None;
+    }
+
+    let w = read_f32_be(bytes, 20)?;
+    let x = read_f32_be(bytes, 24)?;
+    let y = read_f32_be(bytes, 28)?;
+    let z = read_f32_be(bytes, 32)?;
+
+    if log_imu_enabled() {
+        log::debug!("[viture imu quat] w={w:.3} x={x:.3} y={y:.3} z={z:.3}");
+    }
+
+    let quat = Quat::from_xyzw(x, y, z, w);
+    let (yaw, pitch, roll) = quat.to_euler(EulerRot::YXZ);
+
+    Some(normalize_orientation(Orientation {
+        yaw,
+        pitch: -pitch,
+        roll: -roll,
     }))
 }
 
@@ -233,6 +313,28 @@ fn normalize_orientation(mut orientation: Orientation) -> Orientation {
     orientation
 }
 
+fn corrected_orientation(
+    latest: Orientation,
+    calibration: VitureCalibration,
+    offset: Orientation,
+) -> Orientation {
+    normalize_orientation(Orientation {
+        yaw: latest.yaw + calibration.yaw_offset + offset.yaw,
+        pitch: latest.pitch + calibration.pitch_offset + offset.pitch,
+        roll: latest.roll + calibration.roll_offset + offset.roll,
+    })
+}
+
+fn center_offset(latest: Orientation, calibration: VitureCalibration) -> Orientation {
+    let current = corrected_orientation(latest, calibration, Orientation::default());
+
+    Orientation {
+        yaw: -current.yaw,
+        pitch: -current.pitch,
+        roll: -current.roll,
+    }
+}
+
 fn normalize_angle(angle: f32) -> f32 {
     use std::f32::consts::{PI, TAU};
 
@@ -243,6 +345,61 @@ fn looks_like_degrees(roll: f32, pitch: f32, yaw: f32) -> bool {
     [roll, pitch, yaw]
         .iter()
         .any(|value| value.abs() > std::f32::consts::TAU * 1.5)
+}
+
+impl VitureTrackingConfig {
+    fn from_env() -> Self {
+        Self {
+            calibration: VitureCalibration {
+                yaw_offset: env_degrees("VITURE_YAW_OFFSET_DEGREES", 0.0),
+                pitch_offset: env_degrees("VITURE_PITCH_OFFSET_DEGREES", 0.0),
+                roll_offset: env_degrees("VITURE_ROLL_OFFSET_DEGREES", 0.0),
+            },
+            input_format: OrientationInputFormat::from_env(),
+            auto_center_on_start: env_bool("VITURE_AUTO_CENTER_ON_START", true),
+        }
+    }
+}
+
+impl OrientationInputFormat {
+    fn from_env() -> Self {
+        let value = std::env::var("VITURE_ORIENTATION_FORMAT")
+            .unwrap_or_else(|_| "raw12".to_string())
+            .to_lowercase();
+
+        match value.as_str() {
+            "quat36" | "quaternion" | "quaternion36" => Self::Quaternion36,
+            "auto" => Self::Auto,
+            _ => Self::Raw12,
+        }
+    }
+}
+
+fn env_degrees(name: &str, default: f32) -> f32 {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.parse::<f32>().ok())
+        .map(f32::to_radians)
+        .unwrap_or_else(|| default.to_radians())
+}
+
+fn env_bool(name: &str, default: bool) -> bool {
+    std::env::var(name)
+        .ok()
+        .and_then(|value| match value.trim().to_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Some(true),
+            "0" | "false" | "no" | "off" => Some(false),
+            _ => None,
+        })
+        .unwrap_or(default)
+}
+
+fn tracking_config() -> &'static VitureTrackingConfig {
+    TRACKING_CONFIG.get_or_init(VitureTrackingConfig::from_env)
+}
+
+fn trace_tracking_enabled() -> bool {
+    *TRACE_TRACKING.get_or_init(|| std::env::var_os("VITURE_TRACE_TRACKING").is_some())
 }
 
 fn log_imu_enabled() -> bool {

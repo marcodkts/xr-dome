@@ -4,6 +4,8 @@ use winit::{event::ElementState, keyboard::KeyCode};
 
 use super::{Orientation, OrientationSource};
 
+const KEYBOARD_ANGULAR_SPEED_DEGREES_PER_SECOND: f32 = 60.0;
+
 pub struct KeyboardOrientation {
     pose: Orientation,
 
@@ -25,7 +27,7 @@ impl Default for KeyboardOrientation {
             look_up: false,
             look_down: false,
 
-            angular_speed: 90.0_f32.to_radians(),
+            angular_speed: KEYBOARD_ANGULAR_SPEED_DEGREES_PER_SECOND.to_radians(),
         }
     }
 }

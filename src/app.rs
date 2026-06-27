@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use winit::{
     event::{ElementState, KeyEvent, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoopProxy, EventLoopWindowTarget},
-    keyboard::{Key, NamedKey, PhysicalKey},
+    keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
     window::{Fullscreen, Window, WindowId},
 };
 
@@ -138,6 +138,11 @@ impl App {
         }
 
         if key_event.state == ElementState::Pressed && !key_event.repeat {
+            if matches!(key_event.physical_key, PhysicalKey::Code(KeyCode::Escape)) {
+                event_loop.exit();
+                return;
+            }
+
             match key_event.logical_key {
                 Key::Named(NamedKey::F11) => {
                     if self.window.fullscreen().is_some() {

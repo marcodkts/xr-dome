@@ -3,6 +3,9 @@ use winit::{event::ElementState, keyboard::KeyCode};
 
 use crate::orientation::Orientation;
 
+const NAVIGATION_SPEED: f32 = 1.0;
+const SPRINT_MULTIPLIER: f32 = 2.0;
+
 pub struct Navigation {
     position: Vec3,
     initial_position: Vec3,
@@ -38,7 +41,7 @@ impl Navigation {
             down: false,
             sprint: false,
 
-            speed: 1.5,
+            speed: NAVIGATION_SPEED,
         }
     }
 
@@ -145,7 +148,7 @@ impl Navigation {
             direction = direction.normalize();
 
             let speed = if self.sprint {
-                self.speed * 2.5
+                self.speed * SPRINT_MULTIPLIER
             } else {
                 self.speed
             };
